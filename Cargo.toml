@@ -1,0 +1,23 @@
+[package]
+name = "exui"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "exui"
+path = "src/main.rs"
+
+[dependencies]
+byteorder = "1"
+clap = { version = "4", features = ["derive"] }
+memmap2 = "0.9"
+rootcause = "0.12"
+quick-xml = { version = "0.37", features = ["serialize"] }
+bitflags = "2.11.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+insta = "1"
+pretty_assertions = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

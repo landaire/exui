@@ -1,0 +1,42 @@
+---
+source: tests/decompile.rs
+expression: debug_tree(&xur)
+---
+XuiCanvas
+  [1] float=640
+  [2] float=480
+  XuiFigure
+    [1] float=640
+    [2] float=480
+    [1] compound={uint=2, color=0xff0f0f0f, compound={uint=4, color=0xff000080, color=0xff000000, color=0xff000000, color=0xff000080, float=0, float=0.305882, float=0.705882, float=1}}
+    [2] bool=true
+    [3] custom=CUST[0]
+  XuiScene
+    [0] str="XuiScene1"
+    [1] float=592
+    [2] float=432
+    [3] vec=(24,24,0)
+    [10] str="Controls Demo: Introduction"
+    [1] str="TransFrom"
+    [3] str="TransBackFrom"
+    XuiFigure
+      [1] float=369
+      [2] float=2
+      [3] vec=(111,40,0)
+      [0] compound={color=0xff0f0f80}
+      [1] compound={color=0xff0f0f0f, compound={uint=1, color=0x00000000, float=0}, uint=1}
+      [2] bool=true
+      [3] custom=CUST[112]
+    XuiHtmlElement
+      [0] str="XuiHtmlElement1"
+      [1] float=544
+      [2] float=352
+      [3] vec=(24,56,0)
+      [0] str="<font color=\"#000000\" size=11>\r\n\r\nThese demonstration pages will take you through some of the most commonly used controls in XuiTool.\r\nTo run this demo, press the F5 key or click the 'File > Preview' menu option.\r\nDo this now...\r\n\r\n<br/>\r\n<font size=8>\r\n<br/>\r\n</font>\r\n\r\n<table>\r\n<tr>\r\n<td width=\"4%\"/>\r\n<td width=\"3%\" bgcolor=\"#808080\"/>\r\n<td width=\"86%\" bgcolor=\"#808080\">\r\n\r\n<font size=5>\r\n<br/>\r\n</font>\r\n\r\n<font color=\"#FFFFFF\" size=10>\r\nTo navigate through the controls/pages, you can use any of the following:\r\n\r\n<ul>\r\n<li>The arrow keys on your keyboard, along with the A/B/X/Y keys</li>\r\n<li>The mouse cursor, and the left mouse button</li>\r\n<li>An Xbox 360 controller connected to your PC</li>\r\n</ul>\r\n\r\n</font>\r\n</td>\r\n<td width=\"3%\" bgcolor=\"#808080\"/>\r\n<td width=\"4%\"/>\r\n</tr>\r\n</table>\r\n\r\n<font size=8>\r\n<br/>\r\n</font>\r\n\r\nAll controls can be skinned using <i><b>Visuals</b></i> from a skin file.\r\nFor instance, this is how you would create two <i><b>Button</b></i> controls that look completely different from one another.\r\nIf the <i><b>Visual</b></i> property isn't specified for a control, it will use a <i><b>Visual</b></i> with the same name as the control's class (ie. <i>XuiButton</i>).\r\nTo see the <i><b>Visuals</b></i> being used in this demonstration, run the 'File > Open' menu option and select the <i>skin_default.xui</i> file.\r\n</font>\r\n\r\n"
+    XuiNavButton
+      [0] str="navNext"
+      [1] float=160
+      [2] float=40
+      [3] vec=(416,376,0)
+      [10] str="Continue"
+      [0] str="controls_demo2.xur"

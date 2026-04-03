@@ -1,0 +1,29 @@
+---
+source: tests/decompile.rs
+expression: debug_tree(&xur)
+---
+XuiCanvas
+  [1] float=640
+  [2] float=480
+  XuiFigure
+    [0] str="test!"
+    [1] float=70
+    [2] float=25
+    [3] vec=(71,32,0)
+    [0] compound={color=0xff0f0f80}
+    [1] compound={compound={uint=1, color=0x00000000, float=0}, uint=1}
+    [2] bool=true
+    [3] custom=CUST[0]
+  XuiFigure
+    [1] float=0
+    [2] float=1
+    [3] vec=(298,160,0)
+    [0] compound={color=0xff0f0f80}
+    [1] compound={uint=1}
+    [2] bool=true
+    [3] custom=CUST[112]
+  XuiButton
+    [0] str="XuiButton1"
+    [1] float=215
+    [2] float=38
+    [3] vec=(230,128,0)

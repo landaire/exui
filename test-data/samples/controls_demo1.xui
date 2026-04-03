@@ -1,0 +1,137 @@
+<XuiCanvas version="000c">
+<Properties>
+<Width>640.000000</Width>
+<Height>480.000000</Height>
+</Properties>
+<XuiFigure>
+<Properties>
+<Width>640.000000</Width>
+<Height>480.000000</Height>
+<Fill>
+<Properties>
+<FillType>2</FillType>
+<FillColor>0xff0f0f0f</FillColor>
+<Gradient>
+<Properties>
+<NumStops>4</NumStops>
+<StopColor index="0">0xff000080</StopColor>
+<StopColor index="1">0xff000000</StopColor>
+<StopColor index="2">0xff000000</StopColor>
+<StopColor index="3">0xff000080</StopColor>
+<StopPos index="0">0.000000</StopPos>
+<StopPos index="1">0.305882</StopPos>
+<StopPos index="2">0.705882</StopPos>
+<StopPos index="3">1.000000</StopPos>
+</Properties>
+</Gradient>
+</Properties>
+</Fill>
+<Closed>true</Closed>
+<Points>4,0.000000,0.000000,0.000000,0.000000,599.000000,0.000000,0,599.000000,0.000000,599.000000,0.000000,599.000000,469.000000,0,599.000000,469.000000,599.000000,469.000000,0.000000,469.000000,0,0.000000,469.000000,0.000000,469.000000,0.000000,0.000000,0,</Points>
+</Properties>
+</XuiFigure>
+<XuiScene>
+<Properties>
+<Id>XuiScene1</Id>
+<Width>592.000000</Width>
+<Height>432.000000</Height>
+<Position>24.000000,24.000000,0.000000</Position>
+<Text>Controls Demo: Introduction</Text>
+<TransFrom>TransFrom</TransFrom>
+<TransBackFrom>TransBackFrom</TransBackFrom>
+</Properties>
+<XuiFigure>
+<Properties>
+<Width>369.000000</Width>
+<Height>2.000000</Height>
+<Position>111.000000,40.000000,0.000000</Position>
+<Stroke>
+<Properties>
+<StrokeColor>0xff0f0f80</StrokeColor>
+</Properties>
+</Stroke>
+<Fill>
+<Properties>
+<FillColor>0xff0f0f0f</FillColor>
+<Gradient>
+<Properties>
+<NumStops>1</NumStops>
+<StopColor index="0">0x00000000</StopColor>
+<StopPos index="0">0.000000</StopPos>
+</Properties>
+</Gradient>
+<TransformVersion>1</TransformVersion>
+</Properties>
+</Fill>
+<Closed>true</Closed>
+<Points>4,0.000000,0.000000,0.000000,0.000000,456.000000,0.000000,0,456.000000,0.000000,456.000000,0.000000,456.000000,8.000000,0,456.000000,8.000000,456.000000,8.000000,0.000000,8.000000,0,0.000000,8.000000,0.000000,8.000000,0.000000,0.000000,0,</Points>
+</Properties>
+</XuiFigure>
+<XuiHtmlElement>
+<Properties>
+<Id>XuiHtmlElement1</Id>
+<Width>544.000000</Width>
+<Height>352.000000</Height>
+<Position>24.000000,56.000000,0.000000</Position>
+<Text>&lt;font color="#000000" size=11&gt;
+
+These demonstration pages will take you through some of the most commonly used controls in XuiTool.
+To run this demo, press the F5 key or click the 'File &gt; Preview' menu option.
+Do this now...
+
+&lt;br/&gt;
+&lt;font size=8&gt;
+&lt;br/&gt;
+&lt;/font&gt;
+
+&lt;table&gt;
+&lt;tr&gt;
+&lt;td width="4%"/&gt;
+&lt;td width="3%" bgcolor="#808080"/&gt;
+&lt;td width="86%" bgcolor="#808080"&gt;
+
+&lt;font size=5&gt;
+&lt;br/&gt;
+&lt;/font&gt;
+
+&lt;font color="#FFFFFF" size=10&gt;
+To navigate through the controls/pages, you can use any of the following:
+
+&lt;ul&gt;
+&lt;li&gt;The arrow keys on your keyboard, along with the A/B/X/Y keys&lt;/li&gt;
+&lt;li&gt;The mouse cursor, and the left mouse button&lt;/li&gt;
+&lt;li&gt;An Xbox 360 controller connected to your PC&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;/font&gt;
+&lt;/td&gt;
+&lt;td width="3%" bgcolor="#808080"/&gt;
+&lt;td width="4%"/&gt;
+&lt;/tr&gt;
+&lt;/table&gt;
+
+&lt;font size=8&gt;
+&lt;br/&gt;
+&lt;/font&gt;
+
+All controls can be skinned using &lt;i&gt;&lt;b&gt;Visuals&lt;/b&gt;&lt;/i&gt; from a skin file.
+For instance, this is how you would create two &lt;i&gt;&lt;b&gt;Button&lt;/b&gt;&lt;/i&gt; controls that look completely different from one another.
+If the &lt;i&gt;&lt;b&gt;Visual&lt;/b&gt;&lt;/i&gt; property isn't specified for a control, it will use a &lt;i&gt;&lt;b&gt;Visual&lt;/b&gt;&lt;/i&gt; with the same name as the control's class (ie. &lt;i&gt;XuiButton&lt;/i&gt;).
+To see the &lt;i&gt;&lt;b&gt;Visuals&lt;/b&gt;&lt;/i&gt; being used in this demonstration, run the 'File &gt; Open' menu option and select the &lt;i&gt;skin_default.xui&lt;/i&gt; file.
+&lt;/font&gt;
+
+</Text>
+</Properties>
+</XuiHtmlElement>
+<XuiNavButton>
+<Properties>
+<Id>navNext</Id>
+<Width>160.000000</Width>
+<Height>40.000000</Height>
+<Position>416.000000,376.000000,0.000000</Position>
+<Text>Continue</Text>
+<PressPath>controls_demo2.xur</PressPath>
+</Properties>
+</XuiNavButton>
+</XuiScene>
+</XuiCanvas>
