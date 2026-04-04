@@ -32,11 +32,17 @@ use tracing::debug;
 use tracing::trace;
 
 use super::Header;
+use super::Keyframe;
+use super::KeyframePath;
+use super::NamedFrame;
 use super::Object;
 use super::PropType;
 use super::PropertyGroup;
 use super::PropertyValue;
 use super::SectionHeader;
+use super::Timeline;
+use super::TimelineData;
+use super::TimelineValue;
 use super::Xur;
 use super::XUIB_MAGIC;
 use super::object_flags;
@@ -147,7 +153,7 @@ use PropType::Vector3;
 // Note: PropType::String conflicts with std String, use qualified below
 
 // v5 XuiElement: 14 properties (v8 has 27 with different ordering at indices 7+)
-const XUIELEMENT_TYPES_V5: &[PropType] = &[
+pub const XUIELEMENT_TYPES_V5: &[PropType] = &[
     PropType::String, // 0: Id
     Float,            // 1: Width
     Float,            // 2: Height
@@ -165,7 +171,7 @@ const XUIELEMENT_TYPES_V5: &[PropType] = &[
 ];
 
 // XuiFigure: same between v5 and v8
-const XUIFIGURE_TYPES: &[PropType] = &[
+pub const XUIFIGURE_TYPES: &[PropType] = &[
     Compound, // 0: Stroke
     Compound, // 1: Fill
     Bool,     // 2: Closed
@@ -203,7 +209,7 @@ const GRADIENT_TYPES: &[PropType] = &[
 ];
 
 // Gradient properties that are indexed arrays (have array count prefix).
-fn is_gradient_array_prop(bit: u32) -> bool {
+pub fn is_gradient_array_prop(bit: u32) -> bool {
     matches!(bit, 2 | 3) // StopColor and StopPos
 }
 
@@ -286,13 +292,92 @@ const XUIIMAGE_TYPES: &[PropType] = &[
     Unsigned,         // 4: LoadType
 ];
 
+const XUILABEL_TYPES: &[PropType] = &[
+    Unsigned, // 0: MaxFlowLines
+];
+
+const XUIEDIT_TYPES: &[PropType] = &[
+    Unsigned,         // 0: TextLimit
+    PropType::String, // 1: AllowedChars
+    PropType::String, // 2: PasswordChar
+    Bool,             // 3: ReadOnly
+    Bool,             // 4: Multiline
+    Bool,             // 5: SmoothScroll
+];
+
+const XUICHECKBOX_TYPES: &[PropType] = &[
+    Unsigned, // 0: PressKey
+];
+
+const XUISLIDER_TYPES: &[PropType] = &[
+    Integer,  // 0: RangeMin
+    Integer,  // 1: RangeMax
+    Integer,  // 2: Value
+    Integer,  // 3: Step
+    Bool,     // 4: Vertical
+    Integer,  // 5: AccelInc
+    Unsigned, // 6: AccelTime
+];
+
+const XUILIST_TYPES: &[PropType] = &[
+    Bool, // 0: Wrap
+    Bool, // 1: WrapBump
+];
+
+const XUICOMMONLIST_TYPES: &[PropType] = &[
+    PropType::String, // 0: ItemsText
+    PropType::String, // 1: ItemsImage
+    PropType::String, // 2: ItemsNavPath
+];
+
+const XUISOUND_TYPES: &[PropType] = &[
+    Unsigned, // 0: State
+    Bool,     // 1: Loop
+    Bool,     // 2: Finish
+    Float,    // 3: Volume
+];
+
+const XUISOUNDXAUDIO_TYPES: &[PropType] = &[
+    PropType::String, // 0: File
+];
+
+const XUILISTITEM_TYPES: &[PropType] = &[
+    Unsigned, // 0: Layout
+    Bool,     // 1: (unknown, empirically confirmed as 1 byte)
+    Float,    // 2: BaseSpeed
+    Float,    // 3: MaxSpeed
+    Float,    // 4: Acceleration
+];
+
+// XuiTextPresenter: 8 properties (from _GetPropDef in xamd.dll)
+const XUITEXTPRESENTER_TYPES: &[PropType] = &[
+    Color,            // 0: TextColor
+    Color,            // 1: DropShadowColor
+    Float,            // 2: PointSize
+    PropType::String, // 3: Font
+    Unsigned,         // 4: TextStyle
+    Integer,          // 5: LineSpacing
+    Unsigned,         // 6: Unknown
+    Float,            // 7: TextScale
+];
+
+// Blades dashboard custom class types
+const DASHSCENE_TYPES: &[PropType] = &[
+    PropType::String, // 0: PanelScenePaths
+    PropType::String, // 1: PanelStrings
+    PropType::String, // 2: PanelSettings
+    PropType::String, // 3: (unused)
+    PropType::String, // 4: MetaPanelScene
+    PropType::String, // 5: (unused)
+];
+
 // -- Class hierarchy --
 // Returns the full chain of type tables from XuiElement outward.
 // XuiElement is always read first (handled separately), so this returns
 // only the DERIVED levels in order (innermost derived first).
 // Confirmed from CXuiClassBase<T>::Register() in xamd.dll.
 
-fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
+pub fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
     match class_name {
         // Direct children of XuiElement (1 derived level)
         "XuiCanvas" => &[&[]],
@@ -301,26 +386,26 @@ fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
         "XuiImage" => &[XUIIMAGE_TYPES],
         "XuiGroup" => &[&[]],
         "XuiNineGrid" => &[&[]],
-        "XuiSound" => &[&[]],
+        "XuiSound" => &[XUISOUND_TYPES],
         "XuiVisual" => &[&[]],
         "XuiTransition" => &[&[]],
         "XuiImagePresenter" => &[&[]],
-        "XuiTextPresenter" => &[&[]],
+        "XuiTextPresenter" => &[XUITEXTPRESENTER_TYPES],
         "XuiGridPanel" => &[&[]],
         "XuiShader" => &[&[]],
         "XuiVariable" => &[&[]],
         // XuiElement -> XuiControl (2 derived levels)
         "XuiControl" => &[XUICONTROL_TYPES_V5],
-        "XuiLabel" => &[XUICONTROL_TYPES_V5, &[]],
-        "XuiCheckbox" => &[XUICONTROL_TYPES_V5, &[]],
+        "XuiLabel" => &[XUICONTROL_TYPES_V5, XUILABEL_TYPES],
+        "XuiCheckbox" => &[XUICONTROL_TYPES_V5, XUICHECKBOX_TYPES],
         "XuiRadioButton" => &[XUICONTROL_TYPES_V5, &[]],
         "XuiRadioGroup" => &[XUICONTROL_TYPES_V5, &[]],
         "XuiScrollEnd" => &[XUICONTROL_TYPES_V5, &[]],
         "XuiScrollBar" => &[XUICONTROL_TYPES_V5, &[]],
-        "XuiList" => &[XUICONTROL_TYPES_V5, &[]],
+        "XuiList" => &[XUICONTROL_TYPES_V5, XUILIST_TYPES],
         "XuiProgressBar" => &[XUICONTROL_TYPES_V5, &[]],
-        "XuiSlider" => &[XUICONTROL_TYPES_V5, &[]],
-        "XuiEdit" => &[XUICONTROL_TYPES_V5, &[]],
+        "XuiSlider" => &[XUICONTROL_TYPES_V5, XUISLIDER_TYPES],
+        "XuiEdit" => &[XUICONTROL_TYPES_V5, XUIEDIT_TYPES],
         "XuiCaret" => &[XUICONTROL_TYPES_V5, &[]],
         // XuiElement -> XuiControl -> XuiButton/XuiScene (2 derived levels)
         "XuiButton" => &[XUICONTROL_TYPES_V5, XUIBUTTON_TYPES],
@@ -333,21 +418,63 @@ fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
         "XuiMessageBox" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
         "XuiPerspectiveScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
         // XuiElement -> XuiControl -> XuiCheckbox -> XuiListItem (3 derived)
-        "XuiListItem" => &[XUICONTROL_TYPES_V5, &[], &[]],
+        "XuiListItem" => &[XUICONTROL_TYPES_V5, XUICHECKBOX_TYPES, XUILISTITEM_TYPES],
         // XuiElement -> XuiControl -> XuiList -> XuiCommonList (3 derived)
-        "XuiCommonList" => &[XUICONTROL_TYPES_V5, &[], &[]],
+        "XuiCommonList" => &[XUICONTROL_TYPES_V5, XUILIST_TYPES, XUICOMMONLIST_TYPES],
         // XuiElement -> XuiGroup -> XuiTextureSurface (2 derived)
         "XuiTextureSurface" => &[&[], &[]],
         // XuiElement -> XuiSound -> XuiSoundXAudio (2 derived)
-        "XuiSoundXAudio" => &[&[], &[]],
+        "XuiSoundXAudio" => &[XUISOUND_TYPES, XUISOUNDXAUDIO_TYPES],
         // XuiHtmlElement - v5-only class, extends XuiElement directly
         "XuiHtmlElement" => &[&[PropType::String]],
-        // Unknown classes: assume 1 derived level
-        _ => &[&[]],
+
+        // Blades dashboard custom classes (registered by dash.exe, not xam).
+        // These are visual/behavioral subclasses with NO own property levels -
+        // the v5 binary only stores property levels for classes that have
+        // _GetPropDef registrations. Custom classes without own props share
+        // their parent's hierarchy depth.
+        //
+        // DashScene extends XuiScene with 3 own string properties
+        "DashScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, DASHSCENE_TYPES],
+        "DashBladeTab" | "DashMainScene" | "DashMediaScene"
+        | "DashSystemScene" | "DashLiveScene"
+        | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => {
+            &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, DASHSCENE_TYPES]
+        }
+        "XuiBOTDScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
+            &[PropType::String, PropType::String, PropType::String,
+              PropType::String, PropType::String]],
+        "XuiBOTDContainer" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
+        // XuiGamerCard extends XuiControl (has own props: Format(str), ShowExtendedPanel(bool))
+        "XuiGamerCard" => &[XUICONTROL_TYPES_V5, &[PropType::String, Bool]],
+        // XuiPanel = XuiControl alias
+        "XuiPanel" => &[XUICONTROL_TYPES_V5],
+        // XuiButton_Multiline = XuiButton alias
+        "XuiButton_Multiline" => &[XUICONTROL_TYPES_V5, XUIBUTTON_TYPES],
+
+        // Unknown class: try stripping trailing digits to match a known base
+        _ => resolve_suffixed_hierarchy(class_name),
     }
 }
 
-fn get_compound_sub_types(parent_types: &[PropType], bit: u32) -> Option<&'static [PropType]> {
+/// Handle visual variant class names like "XuiScene1", "XuiImage1", "XuiLabel2".
+/// These are instances that use the base class hierarchy with 0 own properties.
+fn resolve_suffixed_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
+    // Try stripping trailing digits: "XuiScene1" -> "XuiScene"
+    let base = class_name.trim_end_matches(|c: char| c.is_ascii_digit());
+    if base != class_name && !base.is_empty() {
+        let h = get_hierarchy(base);
+        if h != &[&[] as &[PropType]] {
+            return h;
+        }
+    }
+    // Unknown class: assume it's a visual variant of XuiControl (the most common
+    // base class for custom/skin visual elements). This means hier=0 resolves to
+    // XuiControl property types, and hier>=1 resolves to XuiElement.
+    &[XUICONTROL_TYPES_V5]
+}
+
+pub fn get_compound_sub_types(parent_types: &[PropType], bit: u32) -> Option<&'static [PropType]> {
     let ptr = parent_types.as_ptr();
     if std::ptr::eq(ptr, XUIFIGURE_TYPES.as_ptr()) {
         match bit {
@@ -404,18 +531,20 @@ pub fn parse(data: &[u8]) -> Result<Xur<'_>, ParseError> {
     let data_sect = find_section(&sections, section_tag::DATA)
         .ok_or(ParseError::MissingSection("DATA"))?;
     let vect = find_section(&sections, section_tag::VECT);
+    let quat = find_section(&sections, section_tag::QUAT);
     let cust = find_section(&sections, section_tag::CUST);
 
     let strn_data = section_bytes(data, &strn)?;
     let data_data = section_bytes(data, &data_sect)?;
     let vect_data = vect.map(|v| section_bytes(data, &v)).transpose()?.unwrap_or(&[]);
+    let quat_data = quat.map(|q| section_bytes(data, &q)).transpose()?.unwrap_or(&[]);
     let cust_data = cust.map(|c| section_bytes(data, &c)).transpose()?.unwrap_or(&[]);
 
     let strings = parse_string_table(strn_data)?;
     let mut cursor = Cursor::new(data_data);
     let root = parse_object(&mut cursor, data_data, &strings)?;
 
-    Ok(Xur { header, strings, vectors: vect_data, custom: cust_data, root })
+    Ok(Xur { header, strings, vectors: vect_data, quaternions: quat_data, custom: cust_data, root })
 }
 
 fn parse_header(data: &[u8]) -> Result<Header, ParseError> {
@@ -521,8 +650,14 @@ fn parse_object<'a>(
             properties.push(group);
         }
 
-        // Walk the derived class hierarchy (one bitmask per level)
+        // Walk the derived class hierarchy (one bitmask per level).
+        // The number of bitmask bytes depends on the runtime class registration,
+        // which can vary per application (e.g. dash.exe registers extra intermediate
+        // classes). We read our known levels, then consume any trailing empty levels.
         let hierarchy = get_hierarchy(class_str);
+        let mut values_read = properties.iter().map(|g| g.values.len()).sum::<usize>();
+        let total_count = _total_count as usize;
+
         for (level, types) in hierarchy.iter().enumerate() {
             let bitmask = read_v5_bitmask(c)?;
             if bitmask == 0 {
@@ -535,9 +670,11 @@ fn parse_object<'a>(
             } else {
                 read_property_values(c, bitmask, types)?
             };
-            group.level = level + 1; // 0 = XuiElement, 1+ = derived
+            values_read += group.values.len();
+            group.level = level + 1;
             properties.push(group);
         }
+
     }
 
     let props_end = pos(c);
@@ -560,11 +697,13 @@ fn parse_object<'a>(
         }
     }
 
-    if has_timelines {
-        skip_timelines(c)?;
-    }
+    let timelines = if has_timelines {
+        Some(parse_timelines(c, &children, strings)?)
+    } else {
+        None
+    };
 
-    Ok(Object { class_name, properties, children, _raw_props: raw_props })
+    Ok(Object { class_name, properties, children, timelines, _raw_props: raw_props })
 }
 
 /// Skip over timeline data in a v5 object.
@@ -581,68 +720,308 @@ fn parse_object<'a>(
 ///     u32(subtimeline_count)
 ///     Subtimelines: each is 8 bytes fixed + N*4 bytes for animated property values
 ///       where N = number of keyframe paths (keyframe_count)
-fn skip_timelines(c: &mut Cursor<&[u8]>) -> Result<(), ParseError> {
+fn parse_timelines(
+    c: &mut Cursor<&[u8]>,
+    children: &[Object<'_>],
+    strings: &[std::string::String],
+) -> Result<TimelineData, ParseError> {
     let start = pos(c);
 
-    // Phase 1: named timelines - u32(count), each 9 bytes
-    let timeline_count = c.read_u32::<BigEndian>()?;
-    debug!("  @{start} timelines: {timeline_count} named timelines");
-    for _ in 0..timeline_count {
-        c.read_u16::<BigEndian>()?; // name string ref
-        c.read_u32::<BigEndian>()?; // duration
-        c.read_u8()?;               // type
-        c.read_u16::<BigEndian>()?; // from_name string ref
+    // Phase 1: named frames (stop points, transition markers)
+    let nf_count = c.read_u32::<BigEndian>()?;
+    debug!("  @{start} timelines: {nf_count} named frames");
+    let mut named_frames = Vec::with_capacity(nf_count as usize);
+    for _ in 0..nf_count {
+        let name = u32::from(c.read_u16::<BigEndian>()?);
+        let time = c.read_u32::<BigEndian>()?;
+        let command = c.read_u8()?;
+        let from_name = u32::from(c.read_u16::<BigEndian>()?);
+        named_frames.push(NamedFrame { name, time, command, from_name });
     }
 
-    // Phase 2: named frames
-    let named_frame_count = c.read_u32::<BigEndian>()?;
-    debug!("  @{} timelines: {named_frame_count} named frames", pos(c));
-    for _ in 0..named_frame_count {
-        let _name = c.read_u16::<BigEndian>()?;
-        let keyframe_count = c.read_u32::<BigEndian>()?;
+    // Phase 2: animated property timelines.
+    // The v5 runtime only reads this section if the object's class has a
+    // "named frame definition table" (checked via *(obj+8) in sub_100cb730).
+    // This flag is a runtime property, not stored in the binary. We detect
+    // presence structurally: the animated section starts with u32(count).
+    // If absent, the next bytes are either:
+    //   - A sibling/child object header: u16(class_name >= 1) + u8(flags) + ...
+    //     which as u32 BE >= 0x00010000 = 65536
+    //   - End of DATA section (no more bytes)
+    //   - Parent's next section (children/timelines of ancestor)
+    // A valid animated timeline count is always < 65536 (bounded by string table
+    // size). So we read the u32 and check: if < 65536, it's the count; otherwise
+    // the section is absent and we rewind.
+    let tl_count = {
+        let peek_pos = pos(c);
+        let data = *c.get_ref();
+        if peek_pos + 4 > data.len() {
+            // Not enough data for a u32 count - no animated section
+            0
+        } else {
+            let candidate = c.read_u32::<BigEndian>()?;
+            if candidate < 65536 {
+                candidate
+            } else {
+                // Not an animated timeline count - rewind
+                c.set_position(peek_pos as u64);
+                0
+            }
+        }
+    };
+    debug!("  @{} timelines: {tl_count} animated timelines", pos(c));
+    let mut timelines = Vec::with_capacity(tl_count as usize);
+    for _ in 0..tl_count {
+        let target_name = u32::from(c.read_u16::<BigEndian>()?);
+        let path_count = c.read_u32::<BigEndian>()?;
 
-        // Keyframe paths (sub_100cb2d0):
-        // Each: u8(depth_and_flag), if depth>0: 2 bytes + (depth-1) bytes, if flag: u32
-        for _ in 0..keyframe_count {
+        // Resolve the target child's class name for property type lookup.
+        // First try finding the child by Id. If not found, the target name
+        // string itself is often the class name (common in skin/visual files).
+        // Resolve target class for property type lookup.
+        // First try finding the child by Id among direct children.
+        // If not found, use the target name string itself as the class name
+        // (common in skin files where the Id resembles the class name).
+        let target_id_str = strings.get((target_name as usize).wrapping_sub(1));
+        let from_child = find_child_class(children, strings, target_name);
+        let used_child_lookup = from_child.is_some();
+        let target_class = from_child.or_else(|| target_id_str.cloned());
+
+        let mut paths = Vec::with_capacity(path_count as usize);
+        let mut value_sizes = Vec::with_capacity(path_count as usize);
+
+        for _ in 0..path_count {
             let first = c.read_u8()?;
-            let depth = (first & 0x7f) as usize;
+            let depth = first & 0x7f;
             let has_value = first & 0x80 != 0;
+
+            let mut hier_level = 0u8;
+            let mut prop_idx = 0u8;
+            let mut prop_type = None;
+            let mut extra_bytes = Vec::new();
+
             if depth > 0 {
-                c.read_u8()?; // hierarchy level
-                c.read_u8()?; // property index
+                hier_level = c.read_u8()?;
+                prop_idx = c.read_u8()?;
+                prop_type = resolve_keyframe_prop_type(
+                    target_class.as_deref().unwrap_or(""),
+                    hier_level,
+                    prop_idx,
+                );
                 for _ in 1..depth {
-                    c.read_u8()?; // compound sub-index
+                    extra_bytes.push(c.read_u8()?);
+                }
+                // For depth > 1, the path drills into a compound property.
+                // The resolved prop_type is the compound itself. We need to
+                // resolve further using extra_bytes to find the actual animated
+                // sub-property type.
+                if depth > 1 && matches!(prop_type, Some(PropType::Compound)) {
+                    // Walk the compound sub-type chain using extra_bytes.
+                    // Each extra byte is a property index into the compound's sub-types.
+                    let hierarchy = get_hierarchy(target_class.as_deref().unwrap_or(""));
+                    let hl = hier_level as usize;
+                    let parent_types = if hl >= hierarchy.len() {
+                        XUIELEMENT_TYPES_V5
+                    } else {
+                        hierarchy[hierarchy.len() - 1 - hl]
+                    };
+                    // Get the compound's sub-type table
+                    if let Some(sub_types) = get_compound_sub_types(parent_types, prop_idx as u32) {
+                        let mut current_types = sub_types;
+                        for (i, &extra_idx) in extra_bytes.iter().enumerate() {
+                            let sub_type = current_types.get(extra_idx as usize).copied();
+                            if i == extra_bytes.len() - 1 {
+                                // Last level: this is the actual animated property type
+                                prop_type = sub_type;
+                            } else if matches!(sub_type, Some(PropType::Compound)) {
+                                // Drill deeper into nested compound
+                                if let Some(deeper) = get_compound_sub_types(current_types, extra_idx as u32) {
+                                    current_types = deeper;
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                prop_type = sub_type;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-            if has_value {
-                c.read_u32::<BigEndian>()?;
-            }
+
+            let default_value = if has_value {
+                Some(c.read_u32::<BigEndian>()?)
+            } else {
+                None
+            };
+
+            let prop_name = resolve_keyframe_prop_name(
+                target_class.as_deref().unwrap_or(""),
+                hier_level,
+                prop_idx,
+            );
+
+            value_sizes.push(timeline_value_size(prop_type));
+            paths.push(KeyframePath {
+                hier_level,
+                prop_idx,
+                prop_type,
+                prop_name,
+                depth,
+                extra_bytes,
+                default_value,
+            });
         }
 
-        // Subtimelines (sub_100cb558):
-        // Each: u32 + 4*u8 (8 bytes fixed) + keyframe_count * 4 bytes (property values)
-        let subtimeline_count = c.read_u32::<BigEndian>()?;
-        let sub_size = 8 + (keyframe_count as usize) * 4;
+
+
+        // Keyframe entries (subtimelines in the RE)
+        let kf_count = c.read_u32::<BigEndian>()?;
+        let values_per_kf: usize = value_sizes.iter().sum();
         trace!(
-            "  @{} {subtimeline_count} subtimelines, {sub_size} bytes each",
-            pos(c)
+            "  @{} {kf_count} keyframes, {} bytes each (8+{values_per_kf})",
+            pos(c),
+            8 + values_per_kf
         );
-        for _ in 0..subtimeline_count {
-            // 8 bytes fixed header
-            c.read_u32::<BigEndian>()?; // time/index
-            c.read_u8()?;              // flags
-            c.read_u8()?;              // ease type
-            c.read_u8()?;              // ease data
-            c.read_u8()?;              // ease data
-            // One value per keyframe path (4 bytes each)
-            for _ in 0..keyframe_count {
-                c.read_u32::<BigEndian>()?;
+
+        let mut keyframes = Vec::with_capacity(kf_count as usize);
+        for _ in 0..kf_count {
+            let time = c.read_u32::<BigEndian>()?;
+            let interpolation = c.read_u8()?;
+            let ease = [c.read_u8()?, c.read_u8()?, c.read_u8()?];
+
+            let mut values = Vec::with_capacity(paths.len());
+            for (i, &sz) in value_sizes.iter().enumerate() {
+                values.push(read_timeline_value(c, paths[i].prop_type, sz)?);
             }
+            keyframes.push(Keyframe { time, interpolation, ease, values });
         }
+
+        timelines.push(Timeline { target_name, target_class: target_class.clone(), paths, keyframes });
     }
 
     debug!("  @{} timelines done", pos(c));
-    Ok(())
+    Ok(TimelineData { named_frames, timelines })
+}
+
+fn read_timeline_value(
+    c: &mut Cursor<&[u8]>,
+    prop_type: Option<PropType>,
+    _size: usize,
+) -> Result<TimelineValue, ParseError> {
+    Ok(match prop_type {
+        Some(PropType::Bool) => TimelineValue::Bool(c.read_u8()? != 0),
+        Some(PropType::Float) => TimelineValue::Float(c.read_f32::<BigEndian>()?),
+        Some(PropType::Color) => TimelineValue::Color(c.read_u32::<BigEndian>()?),
+        Some(PropType::Vector3) => TimelineValue::Vector(c.read_u32::<BigEndian>()?),
+        Some(PropType::Quaternion) => TimelineValue::Quaternion(c.read_u32::<BigEndian>()?),
+        Some(PropType::String) => TimelineValue::String(u32::from(c.read_u16::<BigEndian>()?)),
+        _ => TimelineValue::Unsigned(c.read_u32::<BigEndian>()?),
+    })
+}
+
+/// Resolve a keyframe property path to its PropType.
+/// hier_level: number of GetBaseClass calls from the leaf class.
+///   0 = the leaf class itself
+///   1 = parent
+///   N = N levels up (eventually reaching XuiElement)
+///
+/// The hierarchy array is [first_derived, second_derived, ..., leaf].
+/// hier_level 0 indexes the LAST entry (leaf).
+/// If hier_level exceeds the hierarchy depth, it targets XuiElement.
+/// Find a child object by its Id property and return its class name.
+fn find_child_class(
+    children: &[Object<'_>],
+    strings: &[std::string::String],
+    target_name: u32,
+) -> Option<std::string::String> {
+    if target_name == 0 {
+        return None;
+    }
+    let target_id = strings.get((target_name - 1) as usize)?.trim();
+    // Search children (and their descendants) for an object with Id == target_id
+    find_object_by_id(children, strings, target_id)
+}
+
+fn find_object_by_id(
+    objects: &[Object<'_>],
+    strings: &[std::string::String],
+    target_id: &str,
+) -> Option<std::string::String> {
+    // Only search direct children - timelines target immediate children,
+    // not deeper descendants.
+    for obj in objects {
+        if let Some(id_str) = get_object_id(obj, strings) {
+            if id_str == target_id {
+                return strings.get((obj.class_name - 1) as usize).cloned();
+            }
+        }
+    }
+    None
+}
+
+/// Extract the Id string from an object's XuiElement properties (bit 0 = Id).
+fn get_object_id<'a>(obj: &Object<'_>, strings: &'a [std::string::String]) -> Option<&'a str> {
+    for group in &obj.properties {
+        if group.level == 0 && group.bitmask & 1 != 0 {
+            // First value in the group with bit 0 set is the Id (String)
+            if let Some(PropertyValue::String(idx)) = group.values.first() {
+                if *idx > 0 {
+                    return strings.get((*idx - 1) as usize).map(|s| s.as_str());
+                }
+            }
+        }
+    }
+    None
+}
+
+// v5 XuiElement property names (matching v8 naming for XML compatibility).
+// Used for timeline property name resolution.
+pub const XUIELEMENT_NAMES: &[&str] = &[
+    "Id", "Width", "Height", "Position", "Scale", "Rotation", "Opacity",
+    "Anchor", "Pivot", "Show", "BlendMode", "DisableTimelineRecursion",
+    "ColorWriteFlags", "ColorFactor",
+];
+
+fn resolve_keyframe_prop_name(class_name: &str, hier_level: u8, prop_idx: u8) -> String {
+    // Resolve XuiElement base property names here. For derived levels,
+    // return empty string and let the writer resolve using its name tables.
+    let hierarchy = get_hierarchy(class_name);
+    let hl = hier_level as usize;
+    if hl >= hierarchy.len() {
+        // XuiElement base
+        return XUIELEMENT_NAMES
+            .get(prop_idx as usize)
+            .unwrap_or(&"Unknown")
+            .to_string();
+    }
+    // Derived level - return empty, writer will resolve via get_names_for_hierarchy_level
+    String::new()
+}
+
+fn resolve_keyframe_prop_type(class_name: &str, hier_level: u8, prop_idx: u8) -> Option<PropType> {
+    // hier_level counts GetBaseClass calls from the leaf class:
+    //   0 = leaf class itself (hierarchy[last])
+    //   1 = parent (hierarchy[last-1])
+    //   ...
+    //   N = XuiElement (when N >= hierarchy.len())
+    let hierarchy = get_hierarchy(class_name);
+    let hl = hier_level as usize;
+    if hl >= hierarchy.len() {
+        return XUIELEMENT_TYPES_V5.get(prop_idx as usize).copied();
+    }
+    let level_idx = hierarchy.len() - 1 - hl;
+    hierarchy[level_idx].get(prop_idx as usize).copied()
+}
+
+/// Get the timeline value byte size for a property type.
+/// Bool = 1 byte. String = 2 bytes (u16 ref). Everything else = 4 bytes.
+fn timeline_value_size(prop_type: Option<PropType>) -> usize {
+    match prop_type {
+        Some(PropType::Bool) => 1,
+        Some(PropType::String) => 2,
+        _ => 4,
+    }
 }
 
 /// Read property values given a bitmask and type table.

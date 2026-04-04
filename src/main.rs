@@ -57,10 +57,17 @@ fn main() -> ExitCode {
     }
 }
 
-/// Derive the default output directory from the input path (strip extension).
+/// Derive the default output directory from the input path.
+/// With extension: strip it (`archive.xuiz` -> `archive/`).
+/// Without extension: prefix with `_` (`accountm` -> `_accountm/`).
 fn default_output_dir(input: &std::path::Path) -> PathBuf {
-    let stem = input.file_stem().unwrap_or_default();
-    input.with_file_name(stem)
+    if input.extension().is_some() {
+        let stem = input.file_stem().unwrap_or_default();
+        input.with_file_name(stem)
+    } else {
+        let name = input.file_name().unwrap_or_default();
+        input.with_file_name(format!("_{}", name.to_string_lossy()))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -100,27 +107,65 @@ fn decompile_xuiz(
 
     let archive = archive::XuizArchive::parse(data)?;
 
-    let xur_entries: Vec<_> = archive
-        .entries
-        .iter()
-        .filter(|e| e.name.ends_with(".xur"))
-        .collect();
+    std::fs::create_dir_all(out_dir)?;
 
-    if xur_entries.is_empty() {
-        return Err("no .xur resources found in XUIZ archive".into());
+    // Collect all custom classes across all XURs for a single extension file
+    let mut all_custom = std::collections::BTreeMap::new();
+
+    let mut errors = Vec::new();
+    for entry in &archive.entries {
+        let entry_data = data.read_at(entry.range.clone())?;
+        let normalized = entry.name.replace('\\', std::path::MAIN_SEPARATOR_STR);
+
+        if entry.name.ends_with(".xur") {
+            // Decompile XUR to XUI XML
+            let xui_name = normalized.replace(".xur", ".xui");
+            let out_path = out_dir.join(&xui_name);
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            match exui::xur::Xur::parse(entry_data) {
+                Ok(xur) => {
+                    let xml = exui::xui::to_xui(&xur)
+                        .map_err(|e| exui::xur::ParseError::BadObject(e.to_string()))?;
+                    std::fs::write(&out_path, &xml)?;
+                    eprintln!("{} -> {}", entry.name, out_path.display());
+
+                    // Collect custom classes for consolidated extension file
+                    exui::xui::collect_custom_classes_from_xur(&xur, &mut all_custom);
+                }
+                Err(e) => {
+                    eprintln!("{}: {e}", entry.name);
+                    errors.push(format!("{}: {e}", entry.name));
+                }
+            }
+        } else {
+            // Extract non-XUR resources as-is (PNG, XMA, XUS, etc.)
+            let out_path = out_dir.join(&normalized);
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(&out_path, entry_data)?;
+            eprintln!("{} ({} bytes)", entry.name, entry.size());
+        }
     }
 
-    std::fs::create_dir_all(&out_dir)?;
+    // Emit consolidated class extension file for the entire archive
+    if !all_custom.is_empty() {
+        if let Some(ext_xml) = exui::xui::generate_class_extensions_from_map(&all_custom) {
+            let ext_path = out_dir.join("classes.xml");
+            std::fs::write(&ext_path, &ext_xml)?;
+            eprintln!("class extensions -> {}", ext_path.display());
+        }
+    }
 
-    for entry in &xur_entries {
-        let xur_data = data.read_at(entry.range.clone())?;
-        let xur = exui::xur::Xur::parse(xur_data)?;
-        let xml = exui::xui::to_xui(&xur)?;
-
-        let xui_name = entry.name.replace(".xur", ".xui").replace('\\', std::path::MAIN_SEPARATOR_STR);
-        let out_path = out_dir.join(&xui_name);
-        std::fs::write(&out_path, &xml)?;
-        eprintln!("{} -> {}", entry.name, out_path.display());
+    if !errors.is_empty() {
+        return Err(format!(
+            "{} of {} XUR files failed to decompile",
+            errors.len(),
+            archive.entries.iter().filter(|e| e.name.ends_with(".xur")).count()
+        )
+        .into());
     }
 
     Ok(())
@@ -138,8 +183,22 @@ fn decompile_single_xur(
                 std::fs::create_dir_all(parent)?;
             }
             std::fs::write(path, &xml)?;
+
+            // Generate class extension file if there are custom classes
+            if let Some(ext_xml) = exui::xui::generate_class_extensions(&xur) {
+                let ext_path = path.with_extension("xml");
+                std::fs::write(&ext_path, &ext_xml)?;
+                eprintln!("class extensions -> {}", ext_path.display());
+            }
         }
-        None => print!("{xml}"),
+        None => {
+            print!("{xml}");
+            // Also print extension to stderr if custom classes exist
+            if let Some(ext_xml) = exui::xui::generate_class_extensions(&xur) {
+                eprintln!("--- Class Extensions ---");
+                eprint!("{ext_xml}");
+            }
+        }
     }
     Ok(())
 }

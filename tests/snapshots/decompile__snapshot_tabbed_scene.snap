@@ -1,0 +1,341 @@
+---
+source: tests/decompile.rs
+expression: debug_tree(&xur)
+---
+XuiCanvas
+  [1] float=640
+  [2] float=480
+  XuiTabScene
+    [0] str="XuiTabScene1"
+    [1] float=640
+    [2] float=480
+    [3] vec=(0.000038,0,0)
+    [0] str="MyTabbedScene"
+    [1] str="XuiSceneBlank"
+    [0] str="Tab1"
+    [0] uint=3
+    [1] bool=true
+    [2] bool=true
+    XuiFigure
+      [0] str="background"
+      [1] float=640
+      [2] float=480
+      [2] bool=true
+      [3] custom=CUST[0]
+    XuiText
+      [0] str="HelpText"
+      [1] float=122
+      [2] float=94.8
+      [3] vec=(48.499947,311.39996,0)
+      [0] str="Use LB and RB to switch tabs."
+      [1] color=0xffebebeb
+      [2] color=0x800feb19
+      [5] uint=5123
+    XuiButton
+      [0] str="ExitButton"
+      [1] float=122
+      [3] vec=(48.499947,408.99997,0)
+      [3] bool=true
+      [10] str="Exit"
+      [12] str="b.png"
+      [0] uint=22593
+    XuiScene
+      [0] str="CharacterSummary"
+      [1] float=400
+      [2] float=179
+      [3] vec=(192.49997,266,0)
+      [0] str="MySummaryScene"
+      XuiText
+        [0] str="EquippedMagicItemValue"
+        [1] float=186
+        [2] float=22
+        [3] vec=(214,141.33002,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="(no equipped item)"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+      XuiText
+        [0] str="EquippedMagicItemLabel"
+        [1] float=42.9
+        [2] float=22
+        [3] vec=(214,127.33002,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=6
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Item:"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=10
+      XuiText
+        [0] str="EquippedSpellValue"
+        [1] float=186
+        [2] float=22
+        [3] vec=(214,103.6667,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="(no equipped spell)"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+      XuiText
+        [0] str="EquippedSpellLabel"
+        [1] float=57.2
+        [2] float=22
+        [3] vec=(214,91.00003,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=6
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Spell:"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=10
+      XuiText
+        [0] str="EquippedMagicHeading"
+        [1] float=186
+        [2] float=22
+        [3] vec=(214,62.999992,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=6
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Equipped Magic"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+        [5] uint=280
+      XuiText
+        [0] str="EquippedWeaponValue"
+        [1] float=186
+        [2] float=22
+        [3] vec=(7.000001,140,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="(no eqiupped weapon)"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+      XuiText
+        [0] str="EquippedWeaponLabel"
+        [1] float=74.1
+        [2] float=18
+        [3] vec=(7,126,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Weapon:"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=10
+      XuiText
+        [0] str="EquippedArmorValue"
+        [1] float=186
+        [2] float=22
+        [3] vec=(6.999997,105,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="(no equipped armor)"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+      XuiText
+        [0] str="EquippedArmorLabel"
+        [1] float=55.9
+        [2] float=18
+        [3] vec=(7,90.99999,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Armor:"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=10
+      XuiText
+        [0] str="EquipmentHeading"
+        [1] float=186
+        [2] float=22
+        [3] vec=(7,62.999992,0)
+        [5] quat=(0,0,0,-1)
+        [7] uint=3
+        [8] vec=(-0.000014,-0.000015,0)
+        [0] str="Equipment"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+        [5] uint=280
+      XuiImage
+        [0] str="PortraitValue"
+        [1] float=64
+        [2] float=48
+        [3] vec=(329,7,0)
+      XuiText
+        [0] str="RaceValue"
+        [1] float=189.8
+        [2] float=26
+        [3] vec=(7,27,0)
+        [7] uint=3
+        [0] str="Character Race"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [3] float=12
+        [5] uint=4114
+      XuiText
+        [0] str="NameValue"
+        [1] float=189.8
+        [2] float=26
+        [3] vec=(7,7,0)
+        [7] uint=3
+        [0] str="Character Name"
+        [1] color=0xff0f0f0f
+        [2] color=0x800f0f0f
+        [5] uint=4119
+    XuiButton
+      [0] str="Tab3Label"
+      [1] float=144
+      [3] vec=(48.499947,146.59998,0)
+      [6] float=0.5
+      [10] str="Magic"
+    XuiButton
+      [0] str="Tab2Label"
+      [1] float=144
+      [3] vec=(48.499947,106.79999,0)
+      [6] float=0.5
+      [10] str="Equipment"
+    XuiButton
+      [0] str="Tab1Label"
+      [1] float=144
+      [3] vec=(48.499947,67,0)
+      [10] str="Character"
+    XuiScene
+      [0] str="Tab3"
+      [1] float=400
+      [2] float=189
+      [3] vec=(192.49998,67,0)
+      [9] bool=false
+      [0] str="MyMagicScene"
+      [10] str="Your magic"
+      [0] str="SpellsList"
+      XuiCommonList
+        [0] str="ItemsList"
+        [1] float=178
+        [2] float=120
+        [3] vec=(206.99998,45.000015,0)
+        [7] uint=14
+        [1] str="XuiListCheckableSmall"
+        [4] str="SpellsList"
+        [5] str="SpellsList"
+        [10] str="Items"
+        [0] str="Gem of Warding\r\nRing of INT+1\r\nCloak of Flying\r\n"
+      XuiCommonList
+        [0] str="SpellsList"
+        [1] float=178
+        [2] float=120
+        [3] vec=(15,45.00001,0)
+        [7] uint=11
+        [1] str="XuiListCheckableSmall"
+        [4] str="ItemsList"
+        [5] str="ItemsList"
+        [10] str="Spells"
+        [0] str="Detect Magic\r\nFire Arrow\r\nFreeze\r\nInvisibility\r\nSummon Imp\r\n"
+    XuiScene
+      [0] str="Tab2"
+      [1] float=400
+      [2] float=189
+      [3] vec=(192.5,67,0)
+      [9] bool=false
+      [0] str="MyEquipmentScene"
+      [10] str="Your equipment"
+      [0] str="ArmorList"
+      XuiCommonList
+        [0] str="WeaponsList"
+        [1] float=178
+        [2] float=120
+        [3] vec=(207,45.00001,0)
+        [7] uint=14
+        [1] str="XuiListCheckableSmall"
+        [4] str="ArmorList"
+        [5] str="ArmorList"
+        [10] str="Weapons"
+        [0] str="Dagger\r\nSword\r\nCrossbow\r\nBow\r\nMace\r\n"
+      XuiCommonList
+        [0] str="ArmorList"
+        [1] float=178
+        [2] float=120
+        [3] vec=(15,45.00001,0)
+        [7] uint=11
+        [1] str="XuiListCheckableSmall"
+        [4] str="WeaponsList"
+        [5] str="WeaponsList"
+        [10] str="Armor"
+        [0] str="Helmet\r\nPlate mail\r\nChain mail\r\nShield\r\nBoots\r\n"
+    XuiScene
+      [0] str="Tab1"
+      [1] float=400
+      [2] float=189
+      [3] vec=(192.49997,67,0)
+      [0] str="MyCharacterScene"
+      [10] str="Your character"
+      [0] str="NameEdit"
+      XuiCommonList
+        [0] str="RaceList"
+        [1] float=186
+        [2] float=140
+        [3] vec=(207,35.750004,0)
+        [7] uint=14
+        [1] str="XuiListCheckableSmall"
+        [4] str="NameEdit"
+        [5] str="NameEdit"
+        [6] str="RaceList"
+        [7] str="RaceList"
+        [10] str="Race"
+        [0] str="Half-Giant\r\nHuman\r\nHalf-Elf\r\nElf\r\nDwarf\r\nHalfling\r\nGnome\r\n"
+        XuiListItem
+          [0] str="control_ListItem"
+          [1] float=226
+          [2] float=45
+          [3] vec=(7,22,0)
+          [7] uint=5
+          [9] bool=false
+          [1] str="XuiButton"
+          [4] float=0.00000000000000000000000000000000000000000004
+      XuiButton
+        [0] str="NameVKbdButton"
+        [1] float=180
+        [2] float=35
+        [3] vec=(7.000004,106.75,0)
+        [1] str="A_Button"
+        [3] bool=true
+        [10] str="Keyboard"
+        [12] str="a.png"
+        [0] uint=22528
+      XuiEdit
+        [0] str="NameEdit"
+        [1] float=180
+        [2] float=26
+        [3] vec=(7.000001,71.25,0)
+        [7] uint=3
+        [4] str="RaceList"
+        [5] str="RaceList"
+        [6] str="NameEdit"
+        [7] str="NameEdit"
+        [0] uint=16
+      XuiLabel
+        [0] str="NameLabel"
+        [1] float=75.40001
+        [2] float=23
+        [3] vec=(7,35.75,0)
+        [7] uint=3
+        [10] str="Name"
+    XuiText
+      [0] str="Title"
+      [1] float=545
+      [2] float=40
+      [3] vec=(48,27,0)
+      [0] str="Ye Olde RPG"
+      [1] color=0xffebebeb
+      [2] color=0x800f0f0f
+      [5] uint=5137

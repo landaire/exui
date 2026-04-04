@@ -1,5 +1,5 @@
 pub mod archive;
-mod parse;
+pub mod parse;
 
 use std::fmt;
 
@@ -88,6 +88,7 @@ pub struct Xur<'a> {
     pub header: Header,
     pub strings: Vec<String>,
     pub vectors: &'a [u8],
+    pub quaternions: &'a [u8],
     pub custom: &'a [u8],
     pub root: Object<'a>,
 }
@@ -116,7 +117,66 @@ pub struct Object<'a> {
     pub class_name: u32,
     pub properties: Vec<PropertyGroup>,
     pub children: Vec<Object<'a>>,
+    pub timelines: Option<TimelineData>,
     pub _raw_props: &'a [u8],
+}
+
+/// All timeline/animation data for an object.
+#[derive(Debug, Clone)]
+pub struct TimelineData {
+    pub named_frames: Vec<NamedFrame>,
+    pub timelines: Vec<Timeline>,
+}
+
+/// A named frame marker (stop point, transition label).
+#[derive(Debug, Clone)]
+pub struct NamedFrame {
+    pub name: u32,      // 1-based string table index
+    pub time: u32,
+    pub command: u8,    // 0=none, 1=stop
+    pub from_name: u32, // 1-based string table index, 0=none
+}
+
+/// An animated property timeline targeting a child object.
+#[derive(Debug, Clone)]
+pub struct Timeline {
+    pub target_name: u32,           // 1-based string table index of target object Id
+    pub target_class: Option<String>, // resolved class name of target (for property name lookup)
+    pub paths: Vec<KeyframePath>,   // which properties are animated
+    pub keyframes: Vec<Keyframe>,
+}
+
+/// Identifies which property is being animated.
+#[derive(Debug, Clone)]
+pub struct KeyframePath {
+    pub hier_level: u8,
+    pub prop_idx: u8,
+    pub prop_type: Option<PropType>,
+    pub prop_name: String, // resolved property name (e.g. "Opacity")
+    pub depth: u8,
+    pub extra_bytes: Vec<u8>,
+    pub default_value: Option<u32>,
+}
+
+/// A single keyframe (one point in time with values for all animated properties).
+#[derive(Debug, Clone)]
+pub struct Keyframe {
+    pub time: u32,
+    pub interpolation: u8,
+    pub ease: [u8; 3],
+    pub values: Vec<TimelineValue>,
+}
+
+/// A typed timeline value.
+#[derive(Debug, Clone)]
+pub enum TimelineValue {
+    Bool(bool),
+    Float(f32),
+    Unsigned(u32),
+    String(u32),     // 1-based string index (stored as u32 in timelines)
+    Color(u32),
+    Vector(u32),     // VECT table index
+    Quaternion(u32), // QUAT table index
 }
 
 /// A group of properties at one class hierarchy level.
@@ -156,6 +216,19 @@ impl<'a> Xur<'a> {
             return None;
         }
         self.strings.get((index - 1) as usize).map(|s| s.as_str())
+    }
+
+    /// Get a quaternion by 0-based index.
+    pub fn get_quaternion(&self, index: u32) -> Option<(f32, f32, f32, f32)> {
+        let offset = (index as usize) * 16;
+        if offset + 16 > self.quaternions.len() {
+            return None;
+        }
+        let x = f32::from_be_bytes(self.quaternions[offset..offset + 4].try_into().unwrap());
+        let y = f32::from_be_bytes(self.quaternions[offset + 4..offset + 8].try_into().unwrap());
+        let z = f32::from_be_bytes(self.quaternions[offset + 8..offset + 12].try_into().unwrap());
+        let w = f32::from_be_bytes(self.quaternions[offset + 12..offset + 16].try_into().unwrap());
+        Some((x, y, z, w))
     }
 
     /// Get a vector3 by 0-based index.

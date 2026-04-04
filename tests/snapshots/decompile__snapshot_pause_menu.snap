@@ -1,0 +1,629 @@
+---
+source: tests/decompile.rs
+expression: debug_tree(&xur)
+---
+XuiCanvas
+  [1] float=1280
+  [2] float=720
+  XuiImage
+    [0] str="TEMP_XuiImage1"
+    [1] float=1280
+    [2] float=720
+    [1] str="images/tempbackground.jpg"
+  XuiScene
+    [0] str="XuiScene1"
+    [1] float=1280
+    [2] float=720
+    [0] str="PauseMenu"
+    [1] str="XuiSceneBlank"
+    [0] str="XuiNavButton1"
+    XuiNavButton
+      [0] str="XuiNavButton1"
+      [1] float=282
+      [2] float=35
+      [3] vec=(499,312.87503,0)
+      [6] float=0
+      [7] str="XuiNavButton2"
+      [10] str="Resume Game\r\n\r\n"
+      [0] str="TEMPBlank.xur"
+    XuiNavButton
+      [0] str="XuiNavButton2"
+      [1] float=282
+      [2] float=35
+      [3] vec=(499,363.29166,0)
+      [6] float=0
+      [1] str="XuiButtonL"
+      [6] str="XuiNavButton1"
+      [7] str="XuiNavButton3"
+      [10] str="Controller Options"
+      [0] str="ControllerOptions.xur"
+    XuiNavButton
+      [0] str="XuiNavButton3"
+      [1] float=282
+      [2] float=35
+      [3] vec=(499,413.70828,0)
+      [6] float=0
+      [6] str="XuiNavButton2"
+      [7] str="XuiNavButton4"
+      [10] str="End Game"
+      [0] str="MainMenu.xur"
+    XuiButton
+      [0] str="XuiButton1"
+      [1] float=227
+      [2] float=35
+      [3] vec=(421,605,0)
+      [6] float=0
+      [1] str="A_Button"
+      [10] str="Select\r\n"
+    XuiBackButton
+      [0] str="XuiBackButton1"
+      [1] float=193
+      [2] float=32
+      [3] vec=(657,605,0)
+      [6] float=0
+      [3] bool=true
+      [10] str="Back"
+      [0] uint=22593
+    XuiImage
+      [0] str="XuiImage7"
+      [1] float=251
+      [2] float=150.59999
+      [3] vec=(355,139,0)
+      [5] quat=(0,0,0,0.999999)
+      [6] float=0.153738
+      [8] vec=(110.50568,77.0023,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="Images\\swooshHeader.png"
+    XuiLabel
+      [0] str="XuiLabel1"
+      [1] float=240
+      [2] float=40
+      [3] vec=(512,129,0)
+      [6] float=0
+      [1] str="XuiLabelHeader"
+      [10] str="Pause\n"
+    XuiImage
+      [0] str="XuiImage8"
+      [1] float=210
+      [2] float=58
+      [3] vec=(453,516,0)
+      [6] float=0.3
+      [9] bool=false
+      [0] uint=16
+      [1] str="Images\\swooshFooter.png"
+    XuiImage
+      [0] str="Bubble25"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-0.000031,276,0)
+      [4] vec=(0.5,0.5,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple25"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-134.99997,26.000023,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble24"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-85.00002,104,0)
+      [4] vec=(0.5,0.5,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple24"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-248.99997,-46.999985,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble23"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-106.00002,182,0)
+      [4] vec=(0.5,0.5,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple23"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-208.99997,1.000015,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble22"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-143.19156,194.0426,0)
+      [4] vec=(0.5,0.5,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple22"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-236.99994,68.000015,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble21"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-120.908554,236.417,0)
+      [4] vec=(0.5,0.5,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple21"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-267.99997,100.000015,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble20"
+      [1] float=95
+      [2] float=95
+      [3] vec=(242.99997,290.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple20"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble19"
+      [1] float=95
+      [2] float=95
+      [3] vec=(162.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple19"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble17"
+      [1] float=95
+      [2] float=95
+      [3] vec=(178.99997,309.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple17"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble16"
+      [1] float=95
+      [2] float=95
+      [3] vec=(187.99997,308.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple16"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-104,-105.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble15"
+      [1] float=95
+      [2] float=95
+      [3] vec=(173.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple15"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble14"
+      [1] float=95
+      [2] float=95
+      [3] vec=(162.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple14"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble13"
+      [1] float=95
+      [2] float=95
+      [3] vec=(177.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple13"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble12"
+      [1] float=95
+      [2] float=95
+      [3] vec=(227.99997,295.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple12"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble11"
+      [1] float=95
+      [2] float=95
+      [3] vec=(242.99997,290.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple11"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble27"
+      [1] float=95
+      [2] float=95
+      [3] vec=(162.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple10"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble28"
+      [1] float=95
+      [2] float=95
+      [3] vec=(187.99997,308.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple09"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble29"
+      [1] float=95
+      [2] float=95
+      [3] vec=(173.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="Ripple08"
+      [1] float=350
+      [2] float=350
+      [3] vec=(-105,-104.99997,0)
+      [4] vec=(0.4,0.4,1)
+      [8] vec=(175,174.99997,0)
+      [9] bool=false
+      [1] str="images\\TransRipple01.png"
+    XuiImage
+      [0] str="Bubble30"
+      [1] float=95
+      [2] float=95
+      [3] vec=(162.99997,310.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple13"
+      [1] float=350
+      [2] float=350
+      [3] vec=(268,452,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0.5
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble31"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple10"
+      [1] float=350
+      [2] float=350
+      [3] vec=(503,451,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0.5
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble09"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple09"
+      [1] float=350
+      [2] float=350
+      [3] vec=(608,346,0)
+      [4] vec=(0.2,0.2,1)
+      [6] float=0.5
+      [8] vec=(174.99988,175,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble08"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple08"
+      [1] float=350
+      [2] float=350
+      [3] vec=(696,261,0)
+      [4] vec=(0.2,0.2,1)
+      [6] float=0.5
+      [8] vec=(174.99988,175.00003,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble07"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple14"
+      [1] float=350
+      [2] float=350
+      [3] vec=(662,111,0)
+      [4] vec=(0.2,0.2,1)
+      [6] float=0.5
+      [8] vec=(174.99988,175.00003,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble06"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple06"
+      [1] float=350
+      [2] float=350
+      [3] vec=(587,40,0)
+      [4] vec=(0.2,0.2,1)
+      [6] float=0.5
+      [8] vec=(174.99994,174.99997,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="Bubble05"
+      [1] float=95
+      [2] float=95
+      [3] vec=(-107.00003,402.00003,0)
+      [4] vec=(0,0,1)
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="StaticRipple11"
+      [1] float=350
+      [2] float=350
+      [3] vec=(465.24994,259.49997,0)
+      [4] vec=(1.44,1.44,1)
+      [6] float=0.5
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="StaticRipple12"
+      [1] float=350
+      [2] float=350
+      [3] vec=(465.24994,259.49997,0)
+      [4] vec=(1.44,1.44,1)
+      [6] float=0.5
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="buttonRipple1"
+      [1] float=350
+      [2] float=350
+      [3] vec=(256,140,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="buttonBubble1"
+      [1] float=95
+      [2] float=95
+      [3] vec=(592.98755,388.871,0)
+      [4] vec=(0,0,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="buttonRipple2"
+      [1] float=350
+      [2] float=350
+      [3] vec=(235,222,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="buttonBubble2"
+      [1] float=95
+      [2] float=95
+      [3] vec=(592.98755,388.871,0)
+      [4] vec=(0,0,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiImage
+      [0] str="buttonRipple3"
+      [1] float=350
+      [2] float=350
+      [3] vec=(256,301,0)
+      [4] vec=(0.4,0.4,1)
+      [6] float=0
+      [8] vec=(175.00008,175.00002,0)
+      [9] bool=false
+      [0] uint=16
+      [1] str="images\\TransBubble02.png"
+    XuiImage
+      [0] str="buttonBubble3"
+      [1] float=95
+      [2] float=95
+      [3] vec=(592.98755,388.871,0)
+      [4] vec=(0,0,1)
+      [6] float=0
+      [8] vec=(47.5,47.5,0)
+      [9] bool=false
+      [1] str="images\\TransBubble01.png"
+    XuiSoundXAudio
+      [0] str="XuiSoundXAudio1"
+      [3] vec=(27,43,0)
+      [3] float=-5
+      [0] str="Sounds\\bubbles.wav"
