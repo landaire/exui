@@ -152,7 +152,8 @@ use PropType::Unsigned;
 use PropType::Vector3;
 // Note: PropType::String conflicts with std String, use qualified below
 
-// v5 XuiElement: 14 properties (v8 has 27 with different ordering at indices 7+)
+// v5 XuiElement: 17 properties (v8 has 27 with different ordering at indices 7+)
+// Bits 14-16 are rarely used but confirmed from skin.xur and defaultbanner0.xur.
 pub const XUIELEMENT_TYPES_V5: &[PropType] = &[
     PropType::String, // 0: Id
     Float,            // 1: Width
@@ -168,6 +169,9 @@ pub const XUIELEMENT_TYPES_V5: &[PropType] = &[
     Bool,             // 11: DisableTimelineRecursion
     Bool,             // 12: ColorWriteFlags
     Color,            // 13: ColorFactor
+    Bool,             // 14: (unknown, confirmed Bool from skin.xur)
+    Bool,             // 15: (unknown, confirmed Bool from skin.xur)
+    Bool,             // 16: (unknown, confirmed Bool from defaultbanner0.xur)
 ];
 
 // XuiFigure: same between v5 and v8
@@ -445,12 +449,41 @@ pub fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
             &[PropType::String, PropType::String, PropType::String,
               PropType::String, PropType::String]],
         "XuiBOTDContainer" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
+        // XuiBOTDOfflineContainer extends XuiScene with own props: Unsigned, String
+        "XuiBOTDOfflineContainer" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
+            &[PropType::Unsigned, PropType::String]],
+        // ScriptScene extends XuiScene with 1 own property: script file path (String)
+        "ScriptScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[PropType::String]],
         // XuiGamerCard extends XuiControl (has own props: Format(str), ShowExtendedPanel(bool))
         "XuiGamerCard" => &[XUICONTROL_TYPES_V5, &[PropType::String, Bool]],
         // XuiPanel = XuiControl alias
         "XuiPanel" => &[XUICONTROL_TYPES_V5],
         // XuiButton_Multiline = XuiButton alias
         "XuiButton_Multiline" => &[XUICONTROL_TYPES_V5, XUIBUTTON_TYPES],
+
+        // XuiBOTDOfflineScene extends XuiScene directly (not through XuiBOTDScene).
+        // Own level has 1 String property at bit 0 (confirmed from defaultbanner0.xur).
+        "XuiBOTDOfflineScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
+            &[PropType::String]],
+        // XuiFall07BOTDScene extends XuiScene directly.
+        // Own level has String at bit 6 (confirmed from defaultbanner_featured.xur).
+        // Bits 0-5 unknown; type table has at least 7 entries.
+        "XuiFall07BOTDScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
+            &[PropType::String, PropType::String, PropType::String,
+              PropType::String, PropType::String, PropType::String,
+              PropType::String]],
+        // LiveVisionControl extends XuiControl with no own properties
+        // (confirmed from dashSysLiveVision.xur: 1 empty derived level).
+        "LiveVisionControl" => &[XUICONTROL_TYPES_V5, &[]],
+        // VideoData extends XuiScene with no own properties
+        // (confirmed from VideoContent.xur: 3 empty derived levels = XuiControl+XuiScene+own).
+        "VideoData" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
+        // ScriptImage extends XuiControl with no own properties
+        // (confirmed from VideoDetails.xur: derived level 1 bit 1 = Visual string,
+        //  level 2 empty = own level).
+        "ScriptImage" => &[XUICONTROL_TYPES_V5, &[]],
+        // ScriptList extends XuiList with no own properties
+        "ScriptList" => &[XUICONTROL_TYPES_V5, XUILIST_TYPES, &[]],
 
         // Unknown class: try stripping trailing digits to match a known base
         _ => resolve_suffixed_hierarchy(class_name),

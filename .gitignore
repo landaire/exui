@@ -1,2 +1,2 @@
 /target
-test-data/no-commit/*
+test-data/**/_*

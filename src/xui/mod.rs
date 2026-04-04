@@ -48,7 +48,7 @@ const FILL_NAMES: &[&str] = &[
     "TextureFileName",  // 2
     "Gradient",         // 3
     "Translation",      // 4
-    "Scale",            // 5
+    "Scaling",          // 5
     "Rotation",         // 6
     "WrapX",            // 7
     "WrapY",            // 8
@@ -288,6 +288,32 @@ fn get_names_for_hierarchy_level(class: &str, level: usize) -> &'static [&'stati
         },
         "XuiBOTDContainer" => match level {
             1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, _ => &[]
+        },
+        "XuiBOTDOfflineContainer" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["Unknown", "BannerPath"], _ => &[]
+        },
+        "XuiBOTDOfflineScene" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["BannerPath"], _ => &[]
+        },
+        "XuiFall07BOTDScene" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES,
+            3 => &["Unknown0", "Unknown1", "Unknown2", "Unknown3", "Unknown4", "Unknown5", "VisualOverride"],
+            _ => &[]
+        },
+        "LiveVisionControl" => match level {
+            1 => XUICONTROL_NAMES, _ => &[]
+        },
+        "VideoData" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, _ => &[]
+        },
+        "ScriptImage" => match level {
+            1 => XUICONTROL_NAMES, _ => &[]
+        },
+        "ScriptList" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUILIST_NAMES, _ => &[]
+        },
+        "ScriptScene" => match level {
+            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["ScriptPath"], _ => &[]
         },
 
         // v5-only classes
@@ -846,6 +872,10 @@ const STANDARD_CLASSES: &[&str] = &[
     "XuiScene", "XuiNavButton", "XuiBackButton", "XuiTabScene",
     "XuiMessageBox", "XuiPerspectiveScene", "XuiListItem", "XuiCommonList",
     "XuiTextureSurface", "XuiSoundXAudio", "XuiHtmlElement",
+    "XuiBOTDScene", "XuiBOTDContainer", "XuiBOTDOfflineContainer",
+    "XuiBOTDOfflineScene", "XuiFall07BOTDScene",
+    "XuiGamerCard", "XuiPanel", "ScriptScene",
+    "LiveVisionControl", "VideoData", "ScriptImage", "ScriptList",
 ];
 
 /// Determine the base class name for a custom class.
@@ -857,8 +887,15 @@ fn base_class_for(class_name: &str) -> String {
         | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => "DashScene".into(),
         "XuiBOTDScene" => "XuiScene".into(),
         "XuiBOTDContainer" => "XuiScene".into(),
+        "XuiBOTDOfflineContainer" => "XuiScene".into(),
+        "XuiBOTDOfflineScene" => "XuiScene".into(),
+        "XuiFall07BOTDScene" => "XuiScene".into(),
+        "ScriptScene" => "XuiScene".into(),
+        "VideoData" => "XuiScene".into(),
         "XuiGamerCard" => "XuiControl".into(),
         "XuiPanel" => "XuiControl".into(),
+        "LiveVisionControl" => "XuiControl".into(),
+        "ScriptImage" | "ScriptList" => "XuiControl".into(),
         "XuiButton_Multiline" => "XuiButton".into(),
         _ => {
             let base = class_name.trim_end_matches(|c: char| c.is_ascii_digit());
@@ -969,4 +1006,32 @@ pub fn generate_class_extensions_from_map(custom: &BTreeMap<String, ()>) -> Opti
 
     writeln!(out, "</XUIClassExtension>").unwrap();
     Some(out)
+}
+
+/// Generate a XUI Class Extension XML file for a single class.
+pub fn generate_single_class_extension(class_name: &str) -> String {
+    let base = base_class_for(class_name);
+    let props = own_properties_for(class_name);
+
+    let mut out = String::new();
+    writeln!(out, "<XUIClassExtension version=\"0001\">").unwrap();
+
+    write!(
+        out,
+        "<XUIClass Name=\"{class_name}\" BaseClassName=\"{base}\""
+    ).unwrap();
+    writeln!(out, " Bitmap=\"\" Icon=\"\" DefaultWidth=\"100\" DefaultHeight=\"100\" Description=\"{class_name}\">").unwrap();
+
+    for (name, type_str) in &props {
+        if *name == "Unknown" {
+            continue;
+        }
+        writeln!(out, "<PropDef Flags=\"\" Name=\"{name}\" Type=\"{type_str}\" Editor=\"\">").unwrap();
+        writeln!(out, "<DefaultVal></DefaultVal>").unwrap();
+        writeln!(out, "</PropDef>").unwrap();
+    }
+
+    writeln!(out, "</XUIClass>").unwrap();
+    writeln!(out, "</XUIClassExtension>").unwrap();
+    out
 }

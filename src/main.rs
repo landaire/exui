@@ -150,12 +150,20 @@ fn decompile_xuiz(
         }
     }
 
-    // Emit consolidated class extension file for the entire archive
+    // Emit per-class extension files in an `extensions/` sibling directory
     if !all_custom.is_empty() {
-        if let Some(ext_xml) = exui::xui::generate_class_extensions_from_map(&all_custom) {
-            let ext_path = out_dir.join("classes.xml");
-            std::fs::write(&ext_path, &ext_xml)?;
-            eprintln!("class extensions -> {}", ext_path.display());
+        let ext_dir = out_dir
+            .parent()
+            .unwrap_or(out_dir)
+            .join("extensions");
+        std::fs::create_dir_all(&ext_dir)?;
+        for class_name in all_custom.keys() {
+            let ext_path = ext_dir.join(format!("{class_name}.xml"));
+            if !ext_path.exists() {
+                let xml = exui::xui::generate_single_class_extension(class_name);
+                std::fs::write(&ext_path, &xml)?;
+                eprintln!("class extension -> {}", ext_path.display());
+            }
         }
     }
 
@@ -184,19 +192,30 @@ fn decompile_single_xur(
             }
             std::fs::write(path, &xml)?;
 
-            // Generate class extension file if there are custom classes
-            if let Some(ext_xml) = exui::xui::generate_class_extensions(&xur) {
-                let ext_path = path.with_extension("xml");
-                std::fs::write(&ext_path, &ext_xml)?;
-                eprintln!("class extensions -> {}", ext_path.display());
+            // Generate per-class extension files in extensions/ sibling dir
+            let mut custom = std::collections::BTreeMap::new();
+            exui::xui::collect_custom_classes_from_xur(&xur, &mut custom);
+            if !custom.is_empty() {
+                let ext_dir = path.parent().unwrap_or(std::path::Path::new(".")).join("extensions");
+                std::fs::create_dir_all(&ext_dir)?;
+                for class_name in custom.keys() {
+                    let ext_path = ext_dir.join(format!("{class_name}.xml"));
+                    if !ext_path.exists() {
+                        let xml = exui::xui::generate_single_class_extension(class_name);
+                        std::fs::write(&ext_path, &xml)?;
+                        eprintln!("class extension -> {}", ext_path.display());
+                    }
+                }
             }
         }
         None => {
             print!("{xml}");
-            // Also print extension to stderr if custom classes exist
-            if let Some(ext_xml) = exui::xui::generate_class_extensions(&xur) {
-                eprintln!("--- Class Extensions ---");
-                eprint!("{ext_xml}");
+            // Also print extensions to stderr if custom classes exist
+            let mut custom = std::collections::BTreeMap::new();
+            exui::xui::collect_custom_classes_from_xur(&xur, &mut custom);
+            for class_name in custom.keys() {
+                eprintln!("--- Class Extension: {class_name} ---");
+                eprint!("{}", exui::xui::generate_single_class_extension(class_name));
             }
         }
     }
