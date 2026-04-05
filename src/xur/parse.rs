@@ -183,14 +183,14 @@ pub const XUIFIGURE_TYPES: &[PropType] = &[
 ];
 
 // Stroke: same between v5 and v8
-const STROKE_TYPES: &[PropType] = &[
+pub const STROKE_TYPES: &[PropType] = &[
     Float, // 0: StrokeWidth
     Color, // 1: StrokeColor
 ];
 
 // Fill: 11 properties. Same ordering between v5 and v8.
 // bitmask 0x0408 = bits{3,10} gives Gradient + TransformVersion
-const FILL_TYPES: &[PropType] = &[
+pub const FILL_TYPES: &[PropType] = &[
     Unsigned,         // 0: FillType
     Color,            // 1: FillColor
     PropType::String, // 2: TextureFileName (confirmed from v8 _GetPropDef)
@@ -205,7 +205,7 @@ const FILL_TYPES: &[PropType] = &[
 ];
 
 // Gradient: same ordering between v5 and v8.
-const GRADIENT_TYPES: &[PropType] = &[
+pub const GRADIENT_TYPES: &[PropType] = &[
     Bool,  // 0: Radial          (confirmed from v8)
     Unsigned, // 1: NumStops      (confirmed from v5 test data: bit 1 = uint value 1)
     Color,    // 2: StopColor     (array property, confirmed from v5 test data)
@@ -508,14 +508,13 @@ fn resolve_suffixed_hierarchy(class_name: &str) -> &'static [&'static [PropType]
 }
 
 pub fn get_compound_sub_types(parent_types: &[PropType], bit: u32) -> Option<&'static [PropType]> {
-    let ptr = parent_types.as_ptr();
-    if std::ptr::eq(ptr, XUIFIGURE_TYPES.as_ptr()) {
+    if types_match(parent_types, XUIFIGURE_TYPES) {
         match bit {
             0 => Some(STROKE_TYPES),
             1 => Some(FILL_TYPES),
             _ => None,
         }
-    } else if std::ptr::eq(ptr, FILL_TYPES.as_ptr()) {
+    } else if types_match(parent_types, FILL_TYPES) {
         match bit {
             3 => Some(GRADIENT_TYPES),
             _ => None,
@@ -525,10 +524,14 @@ pub fn get_compound_sub_types(parent_types: &[PropType], bit: u32) -> Option<&'s
     }
 }
 
+/// Content-based type slice comparison (avoids pointer identity issues across platforms).
+pub fn types_match(a: &[PropType], b: &[PropType]) -> bool {
+    a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| *x == *y)
+}
+
 /// Check if a property is an indexed array (has array count prefix).
 fn is_array_property(types: &[PropType], bit: u32) -> bool {
-    let ptr = types.as_ptr();
-    if std::ptr::eq(ptr, GRADIENT_TYPES.as_ptr()) {
+    if types_match(types, GRADIENT_TYPES) {
         return is_gradient_array_prop(bit);
     }
     false

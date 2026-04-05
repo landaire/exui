@@ -420,9 +420,8 @@ fn write_property_group(
 }
 
 fn is_compound_array_prop(names: &[&str], bit: u32) -> bool {
-    let ptr = names.as_ptr();
     // Gradient properties at bits 2 (StopColor) and 3 (StopPos) are arrays
-    std::ptr::eq(ptr, GRADIENT_NAMES.as_ptr()) && matches!(bit, 2 | 3)
+    names == GRADIENT_NAMES && matches!(bit, 2 | 3)
 }
 
 
@@ -804,23 +803,17 @@ fn resolve_compound_timeline_prop_name(
 }
 
 fn get_compound_prop_name(parent_types: &[crate::xur::PropType], bit: u32) -> &'static str {
-    let ptr = parent_types.as_ptr();
-    if std::ptr::eq(ptr, crate::xur::parse::XUIFIGURE_TYPES.as_ptr()) {
+    use crate::xur::parse::types_match;
+    if types_match(parent_types, crate::xur::parse::XUIFIGURE_TYPES) {
         return XUIFIGURE_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
     }
-    // Fill names
-    let fill_types = &[
-        crate::xur::PropType::Unsigned, crate::xur::PropType::Color,
-        crate::xur::PropType::String, crate::xur::PropType::Compound,
-    ];
-    // Check by examining the types content rather than pointer
-    if parent_types.len() == 11 && matches!(parent_types.get(3), Some(crate::xur::PropType::Compound)) {
+    if types_match(parent_types, crate::xur::parse::FILL_TYPES) {
         return FILL_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
     }
-    if parent_types.len() == 4 && matches!(parent_types.get(0), Some(crate::xur::PropType::Bool)) {
+    if types_match(parent_types, crate::xur::parse::GRADIENT_TYPES) {
         return GRADIENT_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
     }
-    if parent_types.len() == 2 && matches!(parent_types.get(0), Some(crate::xur::PropType::Float)) {
+    if types_match(parent_types, crate::xur::parse::STROKE_TYPES) {
         return STROKE_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
     }
     "Unknown"

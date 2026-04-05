@@ -1,3 +1,4 @@
 /target
 test-data/**/_*
 test-data/blades/debug
+test-data/blades/extensions
