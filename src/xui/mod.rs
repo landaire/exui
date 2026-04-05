@@ -865,10 +865,6 @@ const STANDARD_CLASSES: &[&str] = &[
     "XuiScene", "XuiNavButton", "XuiBackButton", "XuiTabScene",
     "XuiMessageBox", "XuiPerspectiveScene", "XuiListItem", "XuiCommonList",
     "XuiTextureSurface", "XuiSoundXAudio", "XuiHtmlElement",
-    "XuiBOTDScene", "XuiBOTDContainer", "XuiBOTDOfflineContainer",
-    "XuiBOTDOfflineScene", "XuiFall07BOTDScene",
-    "XuiGamerCard", "XuiPanel", "ScriptScene",
-    "LiveVisionControl", "VideoData", "ScriptImage", "ScriptList",
 ];
 
 /// Determine the base class name for a custom class.
@@ -888,7 +884,8 @@ fn base_class_for(class_name: &str) -> String {
         "XuiGamerCard" => "XuiControl".into(),
         "XuiPanel" => "XuiControl".into(),
         "LiveVisionControl" => "XuiControl".into(),
-        "ScriptImage" | "ScriptList" => "XuiControl".into(),
+        "ScriptImage" => "XuiControl".into(),
+        "ScriptList" => "XuiList".into(),
         "XuiButton_Multiline" => "XuiButton".into(),
         _ => {
             let base = class_name.trim_end_matches(|c: char| c.is_ascii_digit());
