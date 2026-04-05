@@ -48,7 +48,7 @@ const FILL_NAMES: &[&str] = &[
     "TextureFileName",  // 2
     "Gradient",         // 3
     "Translation",      // 4
-    "Scaling",          // 5
+    "Scale",            // 5
     "Rotation",         // 6
     "WrapX",            // 7
     "WrapY",            // 8
