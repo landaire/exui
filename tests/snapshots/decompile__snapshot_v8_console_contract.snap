@@ -1,0 +1,155 @@
+---
+source: tests/decompile.rs
+expression: debug_tree(&xur)
+---
+XuiCanvas
+  [1] float=852
+  [2] float=480
+  HUDScene
+    [0] str="scnConsoleContract"
+    [1] float=852
+    [2] float=480
+    [0] str="ConsoleContractScene"
+    [5] uint=1
+    [6] uint=1
+    [0] uint=2
+    [1] uint=3
+    XuiButton
+      [0] str="btnSignIn"
+      [1] float=287
+      [2] float=28
+      [3] vec=(138,383,0)
+      [1] str="btn_standard_list"
+      [6] str="btnDismiss"
+      [10] str="Sign In"
+    XuiButton
+      [0] str="btnTryAgain"
+      [1] float=287
+      [2] float=28
+      [3] vec=(138,383,0)
+      [9] bool=false
+      [1] str="btn_standard_list"
+      [6] str="btnShutDown"
+      [10] str="Try Again"
+    XuiButton
+      [0] str="btnShutDown"
+      [1] float=287
+      [2] float=28
+      [3] vec=(138,355,0)
+      [9] bool=false
+      [1] str="btn_standard_list"
+      [7] str="btnTryAgain"
+      [10] str="Turn Off Console"
+    XuiButton
+      [0] str="btnDismiss"
+      [1] float=287
+      [2] float=28
+      [3] vec=(138,355,0)
+      [1] str="btn_standard_list"
+      [7] str="btnSignIn"
+      [10] str="Remind Me Later"
+    XuiLabel
+      [0] str="graphic_metapane"
+      [1] float=287
+      [2] float=350
+      [3] vec=(425,61,0)
+      [1] str="RightPanelShader"
+    XuiButton
+      [0] str="btnA"
+      [1] float=420
+      [2] float=40
+      [3] vec=(147,639,0)
+      [9] bool=false
+      [1] str="legend_A"
+      [10] str="Select"
+    XuiBackButton
+      [0] str="btnB"
+      [1] float=420
+      [2] float=40
+      [3] vec=(119,613,0)
+      [9] bool=false
+      [1] str="legend_B"
+      [2] bool=false
+      [3] bool=true
+      [10] str="Back"
+      [0] uint=22593
+    XuiLabel
+      [0] str="labTimerInfo"
+      [1] float=256
+      [2] float=186
+      [3] vec=(443,215,0)
+      [1] str="Label_BodyWhite"
+      [10] str="Your console needs to connect to Xbox Live occasionally.\r\n\r\nFor more info, go to Xbox.com/mycontract"
+    XuiLabel
+      [0] str="labTimerMessage"
+      [1] float=258
+      [2] float=182
+      [3] vec=(156,77,0)
+      [1] str="Label_Body"
+      [10] str="To keep playing, sign in to Xbox Live within the time remaining."
+    XuiLabel
+      [0] str="labDelinquentInfo"
+      [1] float=253
+      [2] float=172
+      [3] vec=(443,237,0)
+      [9] bool=false
+      [1] str="Label_BodyWhite"
+      [10] str="Please go to Xbox.com/mycontract for more info."
+    XuiLabel
+      [0] str="labDelinquentMessage"
+      [1] float=258
+      [2] float=220
+      [3] vec=(156,77,0)
+      [9] bool=false
+      [1] str="Label_Body"
+      [10] str="Sorry, this console can't play until your subscription payments are up to date."
+    XuiLabel
+      [0] str="labSerialNum"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,160,0)
+      [1] str="Label_BodyWhite"
+    XuiLabel
+      [0] str="labSerialTitle"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,139,0)
+      [1] str="Label_BodyWhite"
+      [10] str="Serial number:"
+    XuiLabel
+      [0] str="labRemainingTime"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,97,0)
+      [1] str="Label_BodyWhite"
+      [10] str="0"
+    XuiLabel
+      [0] str="labRemainingTimeTitle"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,77,0)
+      [1] str="Label_BodyWhite"
+      [10] str="Remaining time:"
+    XuiLabel
+      [0] str="labAccountEmail"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,97,0)
+      [9] bool=false
+      [1] str="Label_BodyWhite"
+      [10] str="Not available"
+    XuiLabel
+      [0] str="labAccountEmailTitle"
+      [1] float=249
+      [2] float=26
+      [3] vec=(443,77,0)
+      [9] bool=false
+      [1] str="Label_BodyWhite"
+      [10] str="Microsoft account:"
+    XuiLabel
+      [0] str="labHeading"
+      [1] float=272
+      [2] float=26
+      [3] vec=(156,36,0)
+      [1] str="Label_Head"
+      [10] str="Terms and Conditions"

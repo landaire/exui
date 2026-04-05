@@ -14,7 +14,9 @@
 //! +0x10  u32     file_table_data_size
 //! +0x14  u16     entry_count
 //! +0x16  entries[entry_count]
-//!          each: u32(resource_size) + u32(field2) + u8(name_len) + [name_len * 2] UTF-16BE
+//!          each: u32(resource_size) + u32(field2) + u8(name_len) + name
+//!          name encoding depends on version: v1 = UTF-16BE (name_len*2 bytes),
+//!          v3 = single-byte ASCII/Latin-1 (name_len bytes)
 //! +vary  resource data (concatenated)
 //! ```
 //!
@@ -145,6 +147,10 @@ impl XuizArchive {
         let table_data_size = BigEndian::read_u32(&data[0x10..0x14]) as usize;
         let entry_count = BigEndian::read_u16(&data[0x14..0x16]) as usize;
 
+        // v1 stores entry names as UTF-16BE (2 bytes/char); v3 stores them as
+        // single-byte ASCII/Latin-1. Branch on version so both decode correctly.
+        let bytes_per_char = if version == 1 { 2 } else { 1 };
+
         let resource_base = HEADER_SIZE + table_data_size;
 
         let mut entries = Vec::with_capacity(entry_count);
@@ -161,14 +167,18 @@ impl XuizArchive {
             let name_chars = data[pos + 8] as usize;
             pos += 9;
 
-            let name_bytes = name_chars * 2;
+            let name_bytes = name_chars * bytes_per_char;
             if pos + name_bytes > data.len() {
                 return Err(ArchiveError::TruncatedEntry { index: i });
             }
 
             let mut name = String::with_capacity(name_chars);
             for j in 0..name_chars {
-                let cu = BigEndian::read_u16(&data[pos + j * 2..pos + j * 2 + 2]);
+                let cu = if bytes_per_char == 2 {
+                    BigEndian::read_u16(&data[pos + j * 2..pos + j * 2 + 2])
+                } else {
+                    u16::from(data[pos + j])
+                };
                 name.push(char::from_u32(u32::from(cu)).unwrap_or('\u{FFFD}'));
             }
             pos += name_bytes;

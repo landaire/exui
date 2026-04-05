@@ -1,5 +1,6 @@
 pub mod archive;
 pub mod parse;
+pub mod parse_v8;
 
 use std::fmt;
 
@@ -25,6 +26,8 @@ pub mod object_flags {
     pub const HAS_PROPERTIES: u8 = 0x01;
     pub const HAS_CHILDREN: u8 = 0x02;
     pub const HAS_TIMELINE: u8 = 0x04;
+    /// v8 only: object has an Id registered for timeline/lookup.
+    pub const HAS_ID: u8 = 0x08;
 }
 
 /// Property value type IDs used in class property definitions.
@@ -207,6 +210,12 @@ impl<'a> Xur<'a> {
     /// Parse a XUIB binary. For XUIZ archives, extract the XUIB first
     /// using `xur::archive::extract_xuib`.
     pub fn parse(data: &'a [u8]) -> Result<Self, ParseError> {
+        if data.len() >= 8 {
+            let raw_version = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
+            if let FormatVersion::V8 = FormatVersion::from_u32(raw_version) {
+                return parse_v8::parse(data);
+            }
+        }
         parse::parse(data)
     }
 
