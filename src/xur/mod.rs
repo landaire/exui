@@ -134,7 +134,7 @@ pub struct TimelineData {
 /// A named frame marker (stop point, transition label).
 #[derive(Debug, Clone)]
 pub struct NamedFrame {
-    pub name: u32,      // 1-based string table index
+    pub name: u32, // 1-based string table index
     pub time: u32,
     pub command: u8,    // 0=none, 1=stop
     pub from_name: u32, // 1-based string table index, 0=none
@@ -143,9 +143,9 @@ pub struct NamedFrame {
 /// An animated property timeline targeting a child object.
 #[derive(Debug, Clone)]
 pub struct Timeline {
-    pub target_name: u32,           // 1-based string table index of target object Id
+    pub target_name: u32, // 1-based string table index of target object Id
     pub target_class: Option<String>, // resolved class name of target (for property name lookup)
-    pub paths: Vec<KeyframePath>,   // which properties are animated
+    pub paths: Vec<KeyframePath>, // which properties are animated
     pub keyframes: Vec<Keyframe>,
 }
 
@@ -176,7 +176,7 @@ pub enum TimelineValue {
     Bool(bool),
     Float(f32),
     Unsigned(u32),
-    String(u32),     // 1-based string index (stored as u32 in timelines)
+    String(u32), // 1-based string index (stored as u32 in timelines)
     Color(u32),
     Vector(u32),     // VECT table index
     Quaternion(u32), // QUAT table index
@@ -235,8 +235,16 @@ impl<'a> Xur<'a> {
         }
         let x = f32::from_be_bytes(self.quaternions[offset..offset + 4].try_into().unwrap());
         let y = f32::from_be_bytes(self.quaternions[offset + 4..offset + 8].try_into().unwrap());
-        let z = f32::from_be_bytes(self.quaternions[offset + 8..offset + 12].try_into().unwrap());
-        let w = f32::from_be_bytes(self.quaternions[offset + 12..offset + 16].try_into().unwrap());
+        let z = f32::from_be_bytes(
+            self.quaternions[offset + 8..offset + 12]
+                .try_into()
+                .unwrap(),
+        );
+        let w = f32::from_be_bytes(
+            self.quaternions[offset + 12..offset + 16]
+                .try_into()
+                .unwrap(),
+        );
         Some((x, y, z, w))
     }
 

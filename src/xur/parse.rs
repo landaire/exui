@@ -43,8 +43,8 @@ use super::SectionHeader;
 use super::Timeline;
 use super::TimelineData;
 use super::TimelineValue;
-use super::Xur;
 use super::XUIB_MAGIC;
+use super::Xur;
 use super::object_flags;
 use super::section_tag;
 
@@ -206,7 +206,7 @@ pub const FILL_TYPES: &[PropType] = &[
 
 // Gradient: same ordering between v5 and v8.
 pub const GRADIENT_TYPES: &[PropType] = &[
-    Bool,  // 0: Radial          (confirmed from v8)
+    Bool,     // 0: Radial          (confirmed from v8)
     Unsigned, // 1: NumStops      (confirmed from v5 test data: bit 1 = uint value 1)
     Color,    // 2: StopColor     (array property, confirmed from v5 test data)
     Float,    // 3: StopPos       (array property, confirmed from v5 test data)
@@ -440,18 +440,28 @@ pub fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
         //
         // DashScene extends XuiScene with 3 own string properties
         "DashScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, DASHSCENE_TYPES],
-        "DashBladeTab" | "DashMainScene" | "DashMediaScene"
-        | "DashSystemScene" | "DashLiveScene"
-        | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => {
+        "DashBladeTab" | "DashMainScene" | "DashMediaScene" | "DashSystemScene"
+        | "DashLiveScene" | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => {
             &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, DASHSCENE_TYPES]
         }
-        "XuiBOTDScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
-            &[PropType::String, PropType::String, PropType::String,
-              PropType::String, PropType::String]],
+        "XuiBOTDScene" => &[
+            XUICONTROL_TYPES_V5,
+            XUISCENE_TYPES,
+            &[
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+            ],
+        ],
         "XuiBOTDContainer" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[]],
         // XuiBOTDOfflineContainer extends XuiScene with own props: Unsigned, String
-        "XuiBOTDOfflineContainer" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
-            &[PropType::Unsigned, PropType::String]],
+        "XuiBOTDOfflineContainer" => &[
+            XUICONTROL_TYPES_V5,
+            XUISCENE_TYPES,
+            &[PropType::Unsigned, PropType::String],
+        ],
         // ScriptScene extends XuiScene with 1 own property: script file path (String)
         "ScriptScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[PropType::String]],
         // XuiGamerCard extends XuiControl (has own props: Format(str), ShowExtendedPanel(bool))
@@ -463,15 +473,23 @@ pub fn get_hierarchy(class_name: &str) -> &'static [&'static [PropType]] {
 
         // XuiBOTDOfflineScene extends XuiScene directly (not through XuiBOTDScene).
         // Own level has 1 String property at bit 0 (confirmed from defaultbanner0.xur).
-        "XuiBOTDOfflineScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
-            &[PropType::String]],
+        "XuiBOTDOfflineScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES, &[PropType::String]],
         // XuiFall07BOTDScene extends XuiScene directly.
         // Own level has String at bit 6 (confirmed from defaultbanner_featured.xur).
         // Bits 0-5 unknown; type table has at least 7 entries.
-        "XuiFall07BOTDScene" => &[XUICONTROL_TYPES_V5, XUISCENE_TYPES,
-            &[PropType::String, PropType::String, PropType::String,
-              PropType::String, PropType::String, PropType::String,
-              PropType::String]],
+        "XuiFall07BOTDScene" => &[
+            XUICONTROL_TYPES_V5,
+            XUISCENE_TYPES,
+            &[
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+                PropType::String,
+            ],
+        ],
         // LiveVisionControl extends XuiControl with no own properties
         // (confirmed from dashSysLiveVision.xur: 1 empty derived level).
         "LiveVisionControl" => &[XUICONTROL_TYPES_V5, &[]],
@@ -497,7 +515,7 @@ fn resolve_suffixed_hierarchy(class_name: &str) -> &'static [&'static [PropType]
     let base = class_name.trim_end_matches(|c: char| c.is_ascii_digit());
     if base != class_name && !base.is_empty() {
         let h = get_hierarchy(base);
-        if h != &[&[] as &[PropType]] {
+        if h != [&[] as &[PropType]] {
             return h;
         }
     }
@@ -558,29 +576,48 @@ pub fn parse(data: &[u8]) -> Result<Xur<'_>, ParseError> {
     let sect_table_offset = HEADER_SIZE + extra_header;
     let needed = sect_table_offset + section_count * SECTION_HEADER_SIZE;
     if data.len() < needed {
-        return Err(ParseError::TooShort { needed, available: data.len() });
+        return Err(ParseError::TooShort {
+            needed,
+            available: data.len(),
+        });
     }
 
     let sections = parse_section_headers(data, section_count, sect_table_offset);
-    let strn = find_section(&sections, section_tag::STRN)
-        .ok_or(ParseError::MissingSection("STRN"))?;
-    let data_sect = find_section(&sections, section_tag::DATA)
-        .ok_or(ParseError::MissingSection("DATA"))?;
+    let strn =
+        find_section(&sections, section_tag::STRN).ok_or(ParseError::MissingSection("STRN"))?;
+    let data_sect =
+        find_section(&sections, section_tag::DATA).ok_or(ParseError::MissingSection("DATA"))?;
     let vect = find_section(&sections, section_tag::VECT);
     let quat = find_section(&sections, section_tag::QUAT);
     let cust = find_section(&sections, section_tag::CUST);
 
     let strn_data = section_bytes(data, &strn)?;
     let data_data = section_bytes(data, &data_sect)?;
-    let vect_data = vect.map(|v| section_bytes(data, &v)).transpose()?.unwrap_or(&[]);
-    let quat_data = quat.map(|q| section_bytes(data, &q)).transpose()?.unwrap_or(&[]);
-    let cust_data = cust.map(|c| section_bytes(data, &c)).transpose()?.unwrap_or(&[]);
+    let vect_data = vect
+        .map(|v| section_bytes(data, &v))
+        .transpose()?
+        .unwrap_or(&[]);
+    let quat_data = quat
+        .map(|q| section_bytes(data, &q))
+        .transpose()?
+        .unwrap_or(&[]);
+    let cust_data = cust
+        .map(|c| section_bytes(data, &c))
+        .transpose()?
+        .unwrap_or(&[]);
 
     let strings = parse_string_table(strn_data)?;
     let mut cursor = Cursor::new(data_data);
     let root = parse_object(&mut cursor, data_data, &strings)?;
 
-    Ok(Xur { header, strings, vectors: vect_data, quaternions: quat_data, custom: cust_data, root })
+    Ok(Xur {
+        header,
+        strings,
+        vectors: vect_data,
+        quaternions: quat_data,
+        custom: cust_data,
+        root,
+    })
 }
 
 fn parse_header(data: &[u8]) -> Result<Header, ParseError> {
@@ -602,16 +639,18 @@ fn parse_header(data: &[u8]) -> Result<Header, ParseError> {
 }
 
 fn parse_section_headers(data: &[u8], count: usize, table_offset: usize) -> Vec<SectionHeader> {
-    (0..count).map(|i| {
-        let base = table_offset + i * SECTION_HEADER_SIZE;
-        let mut tag = [0u8; 4];
-        tag.copy_from_slice(&data[base..base + 4]);
-        SectionHeader {
-            tag,
-            offset: BigEndian::read_u32(&data[base + 4..base + 8]),
-            size: BigEndian::read_u32(&data[base + 8..base + 12]),
-        }
-    }).collect()
+    (0..count)
+        .map(|i| {
+            let base = table_offset + i * SECTION_HEADER_SIZE;
+            let mut tag = [0u8; 4];
+            tag.copy_from_slice(&data[base..base + 4]);
+            SectionHeader {
+                tag,
+                offset: BigEndian::read_u32(&data[base + 4..base + 8]),
+                size: BigEndian::read_u32(&data[base + 8..base + 12]),
+            }
+        })
+        .collect()
 }
 
 fn find_section(sections: &[SectionHeader], tag: &[u8; 4]) -> Option<SectionHeader> {
@@ -622,7 +661,10 @@ fn section_bytes<'a>(data: &'a [u8], section: &SectionHeader) -> Result<&'a [u8]
     let start = section.offset as usize;
     let end = start + section.size as usize;
     if end > data.len() {
-        return Err(ParseError::TooShort { needed: end, available: data.len() });
+        return Err(ParseError::TooShort {
+            needed: end,
+            available: data.len(),
+        });
     }
     Ok(&data[start..end])
 }
@@ -631,12 +673,18 @@ fn parse_string_table(data: &[u8]) -> Result<Vec<std::string::String>, ParseErro
     let mut strings = Vec::new();
     let mut cursor = Cursor::new(data);
     while pos(&cursor) < data.len() {
-        let char_count = cursor.read_u16::<BigEndian>()
-            .map_err(|_| ParseError::BadString { offset: pos(&cursor) })? as usize;
+        let char_count = cursor
+            .read_u16::<BigEndian>()
+            .map_err(|_| ParseError::BadString {
+                offset: pos(&cursor),
+            })? as usize;
         let mut s = std::string::String::with_capacity(char_count);
         for _ in 0..char_count {
-            let cu = cursor.read_u16::<BigEndian>()
-                .map_err(|_| ParseError::BadString { offset: pos(&cursor) })?;
+            let cu = cursor
+                .read_u16::<BigEndian>()
+                .map_err(|_| ParseError::BadString {
+                    offset: pos(&cursor),
+                })?;
             s.push(char::from_u32(u32::from(cu)).unwrap_or('\u{FFFD}'));
         }
         strings.push(s);
@@ -655,7 +703,9 @@ fn parse_object<'a>(
 
     let class_name = u32::from(c.read_u16::<BigEndian>()?);
     if class_name == 0 {
-        return Err(ParseError::BadObject(format!("null class name @{obj_start}")));
+        return Err(ParseError::BadObject(format!(
+            "null class name @{obj_start}"
+        )));
     }
 
     let class_str = strings
@@ -692,7 +742,7 @@ fn parse_object<'a>(
         // classes). We read our known levels, then consume any trailing empty levels.
         let hierarchy = get_hierarchy(class_str);
         let mut values_read = properties.iter().map(|g| g.values.len()).sum::<usize>();
-        let total_count = _total_count as usize;
+        let _total_count = _total_count as usize;
 
         for (level, types) in hierarchy.iter().enumerate() {
             let bitmask = read_v5_bitmask(c)?;
@@ -710,7 +760,6 @@ fn parse_object<'a>(
             group.level = level + 1;
             properties.push(group);
         }
-
     }
 
     let props_end = pos(c);
@@ -726,7 +775,8 @@ fn parse_object<'a>(
                 Ok(child) => children.push(child),
                 Err(e) => {
                     return Err(ParseError::BadObject(format!(
-                        "child {i}/{child_count} @{}: {e}", pos(c)
+                        "child {i}/{child_count} @{}: {e}",
+                        pos(c)
                     )));
                 }
             }
@@ -739,7 +789,13 @@ fn parse_object<'a>(
         None
     };
 
-    Ok(Object { class_name, properties, children, timelines, _raw_props: raw_props })
+    Ok(Object {
+        class_name,
+        properties,
+        children,
+        timelines,
+        _raw_props: raw_props,
+    })
 }
 
 /// Skip over timeline data in a v5 object.
@@ -772,7 +828,12 @@ fn parse_timelines(
         let time = c.read_u32::<BigEndian>()?;
         let command = c.read_u8()?;
         let from_name = u32::from(c.read_u16::<BigEndian>()?);
-        named_frames.push(NamedFrame { name, time, command, from_name });
+        named_frames.push(NamedFrame {
+            name,
+            time,
+            command,
+            from_name,
+        });
     }
 
     // Phase 2: animated property timelines.
@@ -820,7 +881,7 @@ fn parse_timelines(
         // (common in skin files where the Id resembles the class name).
         let target_id_str = strings.get((target_name as usize).wrapping_sub(1));
         let from_child = find_child_class(children, strings, target_name);
-        let used_child_lookup = from_child.is_some();
+        let _used_child_lookup = from_child.is_some();
         let target_class = from_child.or_else(|| target_id_str.cloned());
 
         let mut paths = Vec::with_capacity(path_count as usize);
@@ -871,7 +932,9 @@ fn parse_timelines(
                                 prop_type = sub_type;
                             } else if matches!(sub_type, Some(PropType::Compound)) {
                                 // Drill deeper into nested compound
-                                if let Some(deeper) = get_compound_sub_types(current_types, extra_idx as u32) {
+                                if let Some(deeper) =
+                                    get_compound_sub_types(current_types, extra_idx as u32)
+                                {
                                     current_types = deeper;
                                 } else {
                                     break;
@@ -909,8 +972,6 @@ fn parse_timelines(
             });
         }
 
-
-
         // Keyframe entries (subtimelines in the RE)
         let kf_count = c.read_u32::<BigEndian>()?;
         let values_per_kf: usize = value_sizes.iter().sum();
@@ -930,14 +991,27 @@ fn parse_timelines(
             for (i, &sz) in value_sizes.iter().enumerate() {
                 values.push(read_timeline_value(c, paths[i].prop_type, sz)?);
             }
-            keyframes.push(Keyframe { time, interpolation, ease, values });
+            keyframes.push(Keyframe {
+                time,
+                interpolation,
+                ease,
+                values,
+            });
         }
 
-        timelines.push(Timeline { target_name, target_class: target_class.clone(), paths, keyframes });
+        timelines.push(Timeline {
+            target_name,
+            target_class: target_class.clone(),
+            paths,
+            keyframes,
+        });
     }
 
     debug!("  @{} timelines done", pos(c));
-    Ok(TimelineData { named_frames, timelines })
+    Ok(TimelineData {
+        named_frames,
+        timelines,
+    })
 }
 
 fn read_timeline_value(
@@ -987,10 +1061,10 @@ fn find_object_by_id(
     // Only search direct children - timelines target immediate children,
     // not deeper descendants.
     for obj in objects {
-        if let Some(id_str) = get_object_id(obj, strings) {
-            if id_str == target_id {
-                return strings.get((obj.class_name - 1) as usize).cloned();
-            }
+        if let Some(id_str) = get_object_id(obj, strings)
+            && id_str == target_id
+        {
+            return strings.get((obj.class_name - 1) as usize).cloned();
         }
     }
     None
@@ -1001,10 +1075,10 @@ fn get_object_id<'a>(obj: &Object<'_>, strings: &'a [std::string::String]) -> Op
     for group in &obj.properties {
         if group.level == 0 && group.bitmask & 1 != 0 {
             // First value in the group with bit 0 set is the Id (String)
-            if let Some(PropertyValue::String(idx)) = group.values.first() {
-                if *idx > 0 {
-                    return strings.get((*idx - 1) as usize).map(|s| s.as_str());
-                }
+            if let Some(PropertyValue::String(idx)) = group.values.first()
+                && *idx > 0
+            {
+                return strings.get((*idx - 1) as usize).map(|s| s.as_str());
             }
         }
     }
@@ -1014,9 +1088,20 @@ fn get_object_id<'a>(obj: &Object<'_>, strings: &'a [std::string::String]) -> Op
 // v5 XuiElement property names (matching v8 naming for XML compatibility).
 // Used for timeline property name resolution.
 pub const XUIELEMENT_NAMES: &[&str] = &[
-    "Id", "Width", "Height", "Position", "Scale", "Rotation", "Opacity",
-    "Anchor", "Pivot", "Show", "BlendMode", "DisableTimelineRecursion",
-    "ColorWriteFlags", "ColorFactor",
+    "Id",
+    "Width",
+    "Height",
+    "Position",
+    "Scale",
+    "Rotation",
+    "Opacity",
+    "Anchor",
+    "Pivot",
+    "Show",
+    "BlendMode",
+    "DisableTimelineRecursion",
+    "ColorWriteFlags",
+    "ColorFactor",
 ];
 
 fn resolve_keyframe_prop_name(class_name: &str, hier_level: u8, prop_idx: u8) -> String {
@@ -1083,14 +1168,15 @@ fn read_property_values(
             values.push(read_single_value(c, prop_type, types, bit)?);
         }
     }
-    Ok(PropertyGroup { bitmask, values, level: 0 })
+    Ok(PropertyGroup {
+        bitmask,
+        values,
+        level: 0,
+    })
 }
 
 /// Read values for an unknown derived class level (all as u32).
-fn read_unknown_values(
-    c: &mut Cursor<&[u8]>,
-    bitmask: u32,
-) -> Result<PropertyGroup, ParseError> {
+fn read_unknown_values(c: &mut Cursor<&[u8]>, bitmask: u32) -> Result<PropertyGroup, ParseError> {
     let mut values = Vec::new();
     for bit in 0..32u32 {
         if bitmask & (1 << bit) == 0 {
@@ -1098,7 +1184,11 @@ fn read_unknown_values(
         }
         values.push(PropertyValue::Unsigned(c.read_u32::<BigEndian>()?));
     }
-    Ok(PropertyGroup { bitmask, values, level: 0 })
+    Ok(PropertyGroup {
+        bitmask,
+        values,
+        level: 0,
+    })
 }
 
 /// Read a single typed property value.

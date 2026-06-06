@@ -1,5 +1,6 @@
 use exui::xur::Xur;
-use exui::xur::archive::{ReadAt, XuizArchive};
+use exui::xur::archive::ReadAt;
+use exui::xur::archive::XuizArchive;
 
 fn init_tracing() {
     use tracing_subscriber::EnvFilter;
@@ -43,7 +44,10 @@ fn debug_object(xur: &Xur<'_>, obj: &exui::xur::Object<'_>, out: &mut String, de
 
     for group in &obj.properties {
         for (i, val) in group.values.iter().enumerate() {
-            let bit = (0..32).filter(|b| group.bitmask & (1 << b) != 0).nth(i).unwrap_or(99);
+            let bit = (0..32)
+                .filter(|b| group.bitmask & (1 << b) != 0)
+                .nth(i)
+                .unwrap_or(99);
             writeln!(out, "{indent}  [{bit}] {}", format_value(xur, val)).unwrap();
         }
     }
@@ -214,21 +218,32 @@ fn xuiz_archive_dashmain() {
 
 #[test]
 fn xuiz_archive_hud_is_v3() {
-    let data: &'static [u8] =
-        Box::leak(std::fs::read("test-data/hud").expect("read").into_boxed_slice());
+    let data: &'static [u8] = Box::leak(
+        std::fs::read("test-data/hud")
+            .expect("read")
+            .into_boxed_slice(),
+    );
     let archive = XuizArchive::parse(data).expect("parse XUIZ");
     assert_eq!(archive.version, 3);
     // v3 names are single-byte ASCII; a botched decode yields CJK mojibake.
     assert!(archive.entries.iter().any(|e| e.name == "Strings.xus"));
-    assert!(archive.entries.iter().any(|e| e.name == "ConsoleContract.xur"));
+    assert!(
+        archive
+            .entries
+            .iter()
+            .any(|e| e.name == "ConsoleContract.xur")
+    );
 }
 
 /// Every XUIB v8 resource in the dashboard archive must decompile to XUI XML.
 #[test]
 fn v8_all_hud_xurs_decompile() {
     init_tracing();
-    let data: &'static [u8] =
-        Box::leak(std::fs::read("test-data/hud").expect("read").into_boxed_slice());
+    let data: &'static [u8] = Box::leak(
+        std::fs::read("test-data/hud")
+            .expect("read")
+            .into_boxed_slice(),
+    );
     let archive = XuizArchive::parse(data).expect("parse XUIZ");
 
     let mut total = 0;
@@ -246,8 +261,8 @@ fn v8_all_hud_xurs_decompile() {
             entry.name
         );
         let xur = Xur::parse(bytes).unwrap_or_else(|e| panic!("{}: parse failed: {e}", entry.name));
-        let xml =
-            exui::xui::to_xui(&xur).unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
+        let xml = exui::xui::to_xui(&xur)
+            .unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
         assert!(xml.starts_with("<Xui"), "{}: unexpected XML", entry.name);
     }
     assert_eq!(total, 34, "expected 34 XUR resources");
@@ -259,8 +274,11 @@ fn v8_all_hud_xurs_decompile() {
 #[test]
 fn v8_timeline_keyframe_values_resolve() {
     init_tracing();
-    let data: &'static [u8] =
-        Box::leak(std::fs::read("test-data/hud").expect("read").into_boxed_slice());
+    let data: &'static [u8] = Box::leak(
+        std::fs::read("test-data/hud")
+            .expect("read")
+            .into_boxed_slice(),
+    );
     let archive = XuizArchive::parse(data).expect("parse XUIZ");
 
     let mut keyframe_files = 0;
@@ -270,8 +288,8 @@ fn v8_timeline_keyframe_values_resolve() {
         }
         let bytes = data.read_at(entry.range.clone()).expect("read entry");
         let xur = Xur::parse(bytes).unwrap_or_else(|e| panic!("{}: parse failed: {e}", entry.name));
-        let xml =
-            exui::xui::to_xui(&xur).unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
+        let xml = exui::xui::to_xui(&xur)
+            .unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
         for placeholder in ["VECT[", "FLOT[", "QUAT[", "COLR["] {
             assert!(
                 !xml.contains(placeholder),
@@ -283,13 +301,19 @@ fn v8_timeline_keyframe_values_resolve() {
             keyframe_files += 1;
         }
     }
-    assert!(keyframe_files >= 5, "expected v8 files with timeline keyframes");
+    assert!(
+        keyframe_files >= 5,
+        "expected v8 files with timeline keyframes"
+    );
 }
 
 #[test]
 fn snapshot_v8_console_contract() {
-    let data: &'static [u8] =
-        Box::leak(std::fs::read("test-data/hud").expect("read").into_boxed_slice());
+    let data: &'static [u8] = Box::leak(
+        std::fs::read("test-data/hud")
+            .expect("read")
+            .into_boxed_slice(),
+    );
     let archive = XuizArchive::parse(data).expect("parse XUIZ");
     let entry = archive
         .entries

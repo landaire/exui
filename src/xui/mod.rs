@@ -7,34 +7,34 @@ use crate::xur::PropertyGroup;
 use crate::xur::PropertyValue;
 use crate::xur::TimelineData;
 use crate::xur::TimelineValue;
-use crate::xur::parse::get_hierarchy;
 use crate::xur::Xur;
+use crate::xur::parse::get_hierarchy;
 
 // Property name tables: maps (class_level, bit_index) to XML element name.
 // v5-specific ordering. v8 differs (e.g. XuiElement Show/Anchor swapped at 7/9).
 
 const XUIELEMENT_NAMES: &[&str] = &[
-    "Id",                      // 0
-    "Width",                   // 1
-    "Height",                  // 2
-    "Position",                // 3
-    "Scale",                   // 4
-    "Rotation",                // 5
-    "Opacity",                 // 6
-    "Anchor",                  // 7 (v5 type=Unsigned; v8 name at this index)
-    "Pivot",                   // 8
-    "Show",                    // 9 (v5 type=Bool; v8 name at this index)
-    "BlendMode",               // 10
+    "Id",                       // 0
+    "Width",                    // 1
+    "Height",                   // 2
+    "Position",                 // 3
+    "Scale",                    // 4
+    "Rotation",                 // 5
+    "Opacity",                  // 6
+    "Anchor",                   // 7 (v5 type=Unsigned; v8 name at this index)
+    "Pivot",                    // 8
+    "Show",                     // 9 (v5 type=Bool; v8 name at this index)
+    "BlendMode",                // 10
     "DisableTimelineRecursion", // 11
-    "ColorWriteFlags",         // 12
-    "ColorFactor",             // 13
+    "ColorWriteFlags",          // 12
+    "ColorFactor",              // 13
 ];
 
 const XUIFIGURE_NAMES: &[&str] = &[
-    "Stroke",  // 0
-    "Fill",    // 1
-    "Closed",  // 2
-    "Points",  // 3
+    "Stroke", // 0
+    "Fill",   // 1
+    "Closed", // 2
+    "Points", // 3
 ];
 
 const STROKE_NAMES: &[&str] = &[
@@ -107,12 +107,12 @@ const XUINAVBUTTON_NAMES: &[&str] = &[
 ];
 
 const XUITABSCENE_NAMES: &[&str] = &[
-    "TabCount",     // 0
-    "Wrap",         // 1
-    "UserInterrupt",// 2
-    "VerticalTabs", // 3
-    "NoAutoHide",   // 4
-    "DefaultTab",   // 5
+    "TabCount",      // 0
+    "Wrap",          // 1
+    "UserInterrupt", // 2
+    "VerticalTabs",  // 3
+    "NoAutoHide",    // 4
+    "DefaultTab",    // 5
 ];
 
 const XUITEXT_NAMES: &[&str] = &[
@@ -158,11 +158,7 @@ fn write_object(
 
     // Opening tag
     if is_root {
-        writeln!(
-            out,
-            "<{class} version=\"{:04x}\">",
-            xur.header.xui_version
-        )?;
+        writeln!(out, "<{class} version=\"{:04x}\">", xur.header.xui_version)?;
     } else {
         writeln!(out, "<{class}>")?;
     }
@@ -193,7 +189,11 @@ fn write_object(
     Ok(())
 }
 
-fn get_names_for_group(xur: &Xur<'_>, obj: &Object<'_>, group: &PropertyGroup) -> &'static [&'static str] {
+fn get_names_for_group(
+    xur: &Xur<'_>,
+    obj: &Object<'_>,
+    group: &PropertyGroup,
+) -> &'static [&'static str] {
     if group.level == 0 {
         return XUIELEMENT_NAMES;
     }
@@ -211,13 +211,37 @@ fn get_names_for_hierarchy_level(class: &str, level: usize) -> &'static [&'stati
     // Level 1 = first derived class above XuiElement.
     match class {
         // Direct children of XuiElement (level 1 = leaf)
-        "XuiFigure" => if level == 1 { XUIFIGURE_NAMES } else { &[] },
+        "XuiFigure" => {
+            if level == 1 {
+                XUIFIGURE_NAMES
+            } else {
+                &[]
+            }
+        }
         "XuiCanvas" => &[],
-        "XuiText" => if level == 1 { XUITEXT_NAMES } else { &[] },
-        "XuiImage" => if level == 1 { XUIIMAGE_NAMES } else { &[] },
+        "XuiText" => {
+            if level == 1 {
+                XUITEXT_NAMES
+            } else {
+                &[]
+            }
+        }
+        "XuiImage" => {
+            if level == 1 {
+                XUIIMAGE_NAMES
+            } else {
+                &[]
+            }
+        }
 
         // XuiElement -> XuiControl -> Leaf
-        "XuiControl" => if level == 1 { XUICONTROL_NAMES } else { &[] },
+        "XuiControl" => {
+            if level == 1 {
+                XUICONTROL_NAMES
+            } else {
+                &[]
+            }
+        }
         "XuiButton" => match level {
             1 => XUICONTROL_NAMES,
             2 => XUIBUTTON_NAMES,
@@ -244,90 +268,198 @@ fn get_names_for_hierarchy_level(class: &str, level: usize) -> &'static [&'stati
         },
 
         // XuiControl subtypes with own property names
-        "XuiLabel" => match level { 1 => XUICONTROL_NAMES, 2 => XUILABEL_NAMES, _ => &[] },
-        "XuiCheckbox" => match level { 1 => XUICONTROL_NAMES, 2 => XUICHECKBOX_NAMES, _ => &[] },
-        "XuiSlider" => match level { 1 => XUICONTROL_NAMES, 2 => XUISLIDER_NAMES, _ => &[] },
-        "XuiEdit" => match level { 1 => XUICONTROL_NAMES, 2 => XUIEDIT_NAMES, _ => &[] },
-        "XuiList" => match level { 1 => XUICONTROL_NAMES, 2 => XUILIST_NAMES, _ => &[] },
-        "XuiCommonList" => match level { 1 => XUICONTROL_NAMES, 2 => XUILIST_NAMES, 3 => XUICOMMONLIST_NAMES, _ => &[] },
-        "XuiListItem" => match level { 1 => XUICONTROL_NAMES, 2 => XUICHECKBOX_NAMES, _ => &[] },
+        "XuiLabel" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUILABEL_NAMES,
+            _ => &[],
+        },
+        "XuiCheckbox" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUICHECKBOX_NAMES,
+            _ => &[],
+        },
+        "XuiSlider" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUISLIDER_NAMES,
+            _ => &[],
+        },
+        "XuiEdit" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUIEDIT_NAMES,
+            _ => &[],
+        },
+        "XuiList" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUILIST_NAMES,
+            _ => &[],
+        },
+        "XuiCommonList" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUILIST_NAMES,
+            3 => XUICOMMONLIST_NAMES,
+            _ => &[],
+        },
+        "XuiListItem" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUICHECKBOX_NAMES,
+            _ => &[],
+        },
 
         // XuiControl subtypes without own property names
-        "XuiRadioButton" | "XuiRadioGroup" | "XuiScrollBar"
-        | "XuiProgressBar" | "XuiCaret"
-        | "XuiMessageBox" | "XuiPerspectiveScene" => {
-            if level == 1 { XUICONTROL_NAMES } else { &[] }
+        "XuiRadioButton"
+        | "XuiRadioGroup"
+        | "XuiScrollBar"
+        | "XuiProgressBar"
+        | "XuiCaret"
+        | "XuiMessageBox"
+        | "XuiPerspectiveScene" => {
+            if level == 1 {
+                XUICONTROL_NAMES
+            } else {
+                &[]
+            }
         }
 
         // XuiSound hierarchy
-        "XuiSoundXAudio" => match level { 1 => XUISOUND_NAMES, 2 => XUISOUNDXAUDIO_NAMES, _ => &[] },
+        "XuiSoundXAudio" => match level {
+            1 => XUISOUND_NAMES,
+            2 => XUISOUNDXAUDIO_NAMES,
+            _ => &[],
+        },
 
         // Presenter classes (direct children of XuiElement)
-        "XuiTextPresenter" => if level == 1 { XUITEXTPRESENTER_NAMES } else { &[] },
-        "XuiImagePresenter" => if level == 1 { XUIIMAGEPRESENTER_NAMES } else { &[] },
+        "XuiTextPresenter" => {
+            if level == 1 {
+                XUITEXTPRESENTER_NAMES
+            } else {
+                &[]
+            }
+        }
+        "XuiImagePresenter" => {
+            if level == 1 {
+                XUIIMAGEPRESENTER_NAMES
+            } else {
+                &[]
+            }
+        }
 
         // XuiScrollEnd extends XuiControl
-        "XuiScrollEnd" => match level { 1 => XUICONTROL_NAMES, 2 => XUISCROLLEND_OWN_NAMES, _ => &[] },
+        "XuiScrollEnd" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUISCROLLEND_OWN_NAMES,
+            _ => &[],
+        },
 
         // XuiListItem extends XuiCheckbox extends XuiControl
         "XuiListItem" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUICHECKBOX_NAMES, 3 => XUILISTITEM_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUICHECKBOX_NAMES,
+            3 => XUILISTITEM_NAMES,
+            _ => &[],
         },
 
         // XuiGamerCard extends XuiControl
-        "XuiGamerCard" => match level { 1 => XUICONTROL_NAMES, 2 => XUIGAMERCARD_NAMES, _ => &[] },
+        "XuiGamerCard" => match level {
+            1 => XUICONTROL_NAMES,
+            2 => XUIGAMERCARD_NAMES,
+            _ => &[],
+        },
 
         // XuiBackButton extends XuiButton extends XuiControl
         "XuiBackButton" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUIBUTTON_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUIBUTTON_NAMES,
+            _ => &[],
         },
 
         // XuiBOTDScene/XuiBOTDContainer
         "XuiBOTDScene" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => XUIBOTDSCENE_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => XUIBOTDSCENE_NAMES,
+            _ => &[],
         },
         "XuiBOTDContainer" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            _ => &[],
         },
         "XuiBOTDOfflineContainer" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["Unknown", "BannerPath"], _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => &["Unknown", "BannerPath"],
+            _ => &[],
         },
         "XuiBOTDOfflineScene" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["BannerPath"], _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => &["BannerPath"],
+            _ => &[],
         },
         "XuiFall07BOTDScene" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES,
-            3 => &["Unknown0", "Unknown1", "Unknown2", "Unknown3", "Unknown4", "Unknown5", "VisualOverride"],
-            _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => &[
+                "Unknown0",
+                "Unknown1",
+                "Unknown2",
+                "Unknown3",
+                "Unknown4",
+                "Unknown5",
+                "VisualOverride",
+            ],
+            _ => &[],
         },
         "LiveVisionControl" => match level {
-            1 => XUICONTROL_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            _ => &[],
         },
         "VideoData" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            _ => &[],
         },
         "ScriptImage" => match level {
-            1 => XUICONTROL_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            _ => &[],
         },
         "ScriptList" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUILIST_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUILIST_NAMES,
+            _ => &[],
         },
         "ScriptScene" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => &["ScriptPath"], _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => &["ScriptPath"],
+            _ => &[],
         },
 
         // v5-only classes
-        "XuiHtmlElement" => if level == 1 { XUIHTMLELEMENT_NAMES } else { &[] },
+        "XuiHtmlElement" => {
+            if level == 1 {
+                XUIHTMLELEMENT_NAMES
+            } else {
+                &[]
+            }
+        }
 
         // Blades dashboard classes
         "DashScene" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => DASHSCENE_NAMES, _ => &[]
+            1 => XUICONTROL_NAMES,
+            2 => XUISCENE_NAMES,
+            3 => DASHSCENE_NAMES,
+            _ => &[],
         },
-        "DashMainScene" | "DashMediaScene" | "DashSystemScene"
-        | "DashBladeTab" | "DashLiveScene"
-        | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => match level {
-            1 => XUICONTROL_NAMES, 2 => XUISCENE_NAMES, 3 => DASHSCENE_NAMES, _ => &[]
-        },
+        "DashMainScene" | "DashMediaScene" | "DashSystemScene" | "DashBladeTab"
+        | "DashLiveScene" | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => {
+            match level {
+                1 => XUICONTROL_NAMES,
+                2 => XUISCENE_NAMES,
+                3 => DASHSCENE_NAMES,
+                _ => &[],
+            }
+        }
 
         _ => &[],
     }
@@ -335,8 +467,23 @@ fn get_names_for_hierarchy_level(class: &str, level: usize) -> &'static [&'stati
 
 const XUILABEL_NAMES: &[&str] = &["MaxFlowLines"];
 const XUICHECKBOX_NAMES: &[&str] = &["PressKey"];
-const XUISLIDER_NAMES: &[&str] = &["RangeMin", "RangeMax", "Value", "Step", "Vertical", "AccelInc", "AccelTime"];
-const XUIEDIT_NAMES: &[&str] = &["TextLimit", "AllowedChars", "PasswordChar", "ReadOnly", "Multiline", "SmoothScroll"];
+const XUISLIDER_NAMES: &[&str] = &[
+    "RangeMin",
+    "RangeMax",
+    "Value",
+    "Step",
+    "Vertical",
+    "AccelInc",
+    "AccelTime",
+];
+const XUIEDIT_NAMES: &[&str] = &[
+    "TextLimit",
+    "AllowedChars",
+    "PasswordChar",
+    "ReadOnly",
+    "Multiline",
+    "SmoothScroll",
+];
 const XUILIST_NAMES: &[&str] = &["Wrap", "WrapBump"];
 const XUICOMMONLIST_NAMES: &[&str] = &["ItemsText", "ItemsImage", "ItemsNavPath"];
 const XUISOUND_NAMES: &[&str] = &["State", "Loop", "Finish", "Volume"];
@@ -344,23 +491,23 @@ const XUISOUNDXAUDIO_NAMES: &[&str] = &["File"];
 const XUIHTMLELEMENT_NAMES: &[&str] = &["Text"];
 
 const XUITEXTPRESENTER_NAMES: &[&str] = &[
-    "TextColor", "DropShadowColor", "PointSize", "Font",
-    "TextStyle", "LineSpacing", "Unknown", "TextScale",
+    "TextColor",
+    "DropShadowColor",
+    "PointSize",
+    "Font",
+    "TextStyle",
+    "LineSpacing",
+    "Unknown",
+    "TextScale",
 ];
 
-const XUIIMAGEPRESENTER_NAMES: &[&str] = &[
-    "SizeMode", "ImagePath", "BrushFlags",
-];
+const XUIIMAGEPRESENTER_NAMES: &[&str] = &["SizeMode", "ImagePath", "BrushFlags"];
 
-const XUILISTITEM_NAMES: &[&str] = &[
-    "Layout", "Smooth", "BaseSpeed", "MaxSpeed", "Acceleration",
-];
+const XUILISTITEM_NAMES: &[&str] = &["Layout", "Smooth", "BaseSpeed", "MaxSpeed", "Acceleration"];
 
 const XUIGAMERCARD_NAMES: &[&str] = &["Format", "ShowExtendedPanel"];
 
-const XUIBOTDSCENE_NAMES: &[&str] = &[
-    "Unknown", "Unknown", "Unknown", "Unknown", "DefaultVisual",
-];
+const XUIBOTDSCENE_NAMES: &[&str] = &["Unknown", "Unknown", "Unknown", "Unknown", "DefaultVisual"];
 
 const XUIBOTDCONTAINER_NAMES: &[&str] = &[];
 const XUISCROLLEND_OWN_NAMES: &[&str] = &["ScrollEndType"];
@@ -383,8 +530,13 @@ fn write_property_group(
 ) -> Result<(), std::fmt::Error> {
     // Compute per-array-bit element count.
     // Non-array bits consume 1 value each; array bits split the remainder equally.
-    let set_bits: Vec<u32> = (0..32u32).filter(|b| group.bitmask & (1 << b) != 0).collect();
-    let non_array_count = set_bits.iter().filter(|&&b| !is_compound_array_prop(names, b)).count();
+    let set_bits: Vec<u32> = (0..32u32)
+        .filter(|b| group.bitmask & (1 << b) != 0)
+        .collect();
+    let non_array_count = set_bits
+        .iter()
+        .filter(|&&b| !is_compound_array_prop(names, b))
+        .count();
     let array_bit_count = set_bits.len() - non_array_count;
     let elements_per_array = if array_bit_count > 0 {
         (group.values.len() - non_array_count) / array_bit_count
@@ -398,10 +550,7 @@ fn write_property_group(
             break;
         }
 
-        let name = names
-            .get(bit as usize)
-            .copied()
-            .unwrap_or("Unknown");
+        let name = names.get(bit as usize).copied().unwrap_or("Unknown");
 
         if is_compound_array_prop(names, bit) {
             for arr_idx in 0..elements_per_array {
@@ -423,7 +572,6 @@ fn is_compound_array_prop(names: &[&str], bit: u32) -> bool {
     // Gradient properties at bits 2 (StopColor) and 3 (StopPos) are arrays
     names == GRADIENT_NAMES && matches!(bit, 2 | 3)
 }
-
 
 fn write_property(
     xur: &Xur<'_>,
@@ -550,8 +698,7 @@ fn write_points(xur: &Xur<'_>, offset: u32, out: &mut String) -> Result<(), std:
         return Ok(());
     }
 
-    let block_size =
-        u32::from_be_bytes(cust[off..off + 4].try_into().unwrap()) as usize;
+    let block_size = u32::from_be_bytes(cust[off..off + 4].try_into().unwrap()) as usize;
     let block = &cust[off + 4..off + 4 + block_size.min(cust.len() - off - 4)];
 
     if block.len() < 8 {
@@ -592,9 +739,7 @@ fn write_points(xur: &Xur<'_>, offset: u32, out: &mut String) -> Result<(), std:
         }
         for j in 0..floats_per_point {
             let foff = base + j * 4;
-            let f = f32::from_be_bytes(
-                point_data[foff..foff + 4].try_into().unwrap(),
-            );
+            let f = f32::from_be_bytes(point_data[foff..foff + 4].try_into().unwrap());
             write!(out, "{f:.6},")?;
         }
         // Type field: in the XUI it's always "0," for straight lines
@@ -644,7 +789,10 @@ fn write_timelines(
             let tc = timeline.target_class.as_deref().unwrap_or("");
             let (prop_name, index_attr) = format_timeline_prop(tc, path);
             if let Some(idx) = index_attr {
-                writeln!(out, "<TimelineProp index=\"{idx}\">{prop_name}</TimelineProp>")?;
+                writeln!(
+                    out,
+                    "<TimelineProp index=\"{idx}\">{prop_name}</TimelineProp>"
+                )?;
             } else {
                 writeln!(out, "<TimelineProp>{prop_name}</TimelineProp>")?;
             }
@@ -697,7 +845,8 @@ fn format_timeline_prop(
     class_name: &str,
     path: &crate::xur::KeyframePath,
 ) -> (String, Option<u32>) {
-    use crate::xur::parse::{get_compound_sub_types, is_gradient_array_prop};
+    use crate::xur::parse::get_compound_sub_types;
+    use crate::xur::parse::is_gradient_array_prop;
 
     if path.depth <= 1 || path.extra_bytes.is_empty() {
         // Simple property (no compound drilling)
@@ -805,13 +954,19 @@ fn resolve_compound_timeline_prop_name(
 fn get_compound_prop_name(parent_types: &[crate::xur::PropType], bit: u32) -> &'static str {
     use crate::xur::parse::types_match;
     if types_match(parent_types, crate::xur::parse::XUIFIGURE_TYPES) {
-        return XUIFIGURE_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
+        return XUIFIGURE_NAMES
+            .get(bit as usize)
+            .copied()
+            .unwrap_or("Unknown");
     }
     if types_match(parent_types, crate::xur::parse::FILL_TYPES) {
         return FILL_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
     }
     if types_match(parent_types, crate::xur::parse::GRADIENT_TYPES) {
-        return GRADIENT_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
+        return GRADIENT_NAMES
+            .get(bit as usize)
+            .copied()
+            .unwrap_or("Unknown");
     }
     if types_match(parent_types, crate::xur::parse::STROKE_TYPES) {
         return STROKE_NAMES.get(bit as usize).copied().unwrap_or("Unknown");
@@ -856,24 +1011,55 @@ fn write_timeline_value(
 
 /// Standard XUI SDK classes that don't need extension files.
 const STANDARD_CLASSES: &[&str] = &[
-    "XuiElement", "XuiCanvas", "XuiFigure", "XuiText", "XuiImage",
-    "XuiGroup", "XuiNineGrid", "XuiSound", "XuiVisual", "XuiTransition",
-    "XuiImagePresenter", "XuiTextPresenter", "XuiGridPanel", "XuiShader",
-    "XuiVariable", "XuiControl", "XuiLabel", "XuiCheckbox", "XuiRadioButton",
-    "XuiRadioGroup", "XuiScrollEnd", "XuiScrollBar", "XuiList",
-    "XuiProgressBar", "XuiSlider", "XuiEdit", "XuiCaret", "XuiButton",
-    "XuiScene", "XuiNavButton", "XuiBackButton", "XuiTabScene",
-    "XuiMessageBox", "XuiPerspectiveScene", "XuiListItem", "XuiCommonList",
-    "XuiTextureSurface", "XuiSoundXAudio", "XuiHtmlElement",
+    "XuiElement",
+    "XuiCanvas",
+    "XuiFigure",
+    "XuiText",
+    "XuiImage",
+    "XuiGroup",
+    "XuiNineGrid",
+    "XuiSound",
+    "XuiVisual",
+    "XuiTransition",
+    "XuiImagePresenter",
+    "XuiTextPresenter",
+    "XuiGridPanel",
+    "XuiShader",
+    "XuiVariable",
+    "XuiControl",
+    "XuiLabel",
+    "XuiCheckbox",
+    "XuiRadioButton",
+    "XuiRadioGroup",
+    "XuiScrollEnd",
+    "XuiScrollBar",
+    "XuiList",
+    "XuiProgressBar",
+    "XuiSlider",
+    "XuiEdit",
+    "XuiCaret",
+    "XuiButton",
+    "XuiScene",
+    "XuiNavButton",
+    "XuiBackButton",
+    "XuiTabScene",
+    "XuiMessageBox",
+    "XuiPerspectiveScene",
+    "XuiListItem",
+    "XuiCommonList",
+    "XuiTextureSurface",
+    "XuiSoundXAudio",
+    "XuiHtmlElement",
 ];
 
 /// Determine the base class name for a custom class.
 fn base_class_for(class_name: &str) -> String {
     match class_name {
         "DashScene" => "XuiScene".into(),
-        "DashBladeTab" | "DashMainScene" | "DashMediaScene"
-        | "DashSystemScene" | "DashLiveScene"
-        | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => "DashScene".into(),
+        "DashBladeTab" | "DashMainScene" | "DashMediaScene" | "DashSystemScene"
+        | "DashLiveScene" | "DashLiveSignedIn" | "DashLiveSignedOut" | "DashLiveConnected" => {
+            "DashScene".into()
+        }
         "XuiBOTDScene" => "XuiScene".into(),
         "XuiBOTDContainer" => "XuiScene".into(),
         "XuiBOTDOfflineContainer" => "XuiScene".into(),
@@ -935,14 +1121,14 @@ fn own_properties_for(class_name: &str) -> Vec<(&'static str, &'static str)> {
 }
 
 /// Collect all non-standard class names from an object tree.
-fn collect_custom_classes<'a>(obj: &'a Object<'_>, strings: &[String], out: &mut BTreeMap<String, ()>) {
-    if let Some(class) = strings.get((obj.class_name as usize).wrapping_sub(1)) {
-        if !STANDARD_CLASSES.contains(&class.as_str()) {
-            // Skip suffixed variants that map to standard classes
-            let base = class.trim_end_matches(|c: char| c.is_ascii_digit());
-            if base == class || !STANDARD_CLASSES.contains(&base) {
-                out.insert(class.clone(), ());
-            }
+fn collect_custom_classes(obj: &Object<'_>, strings: &[String], out: &mut BTreeMap<String, ()>) {
+    if let Some(class) = strings.get((obj.class_name as usize).wrapping_sub(1))
+        && !STANDARD_CLASSES.contains(&class.as_str())
+    {
+        // Skip suffixed variants that map to standard classes
+        let base = class.trim_end_matches(|c: char| c.is_ascii_digit());
+        if base == class || !STANDARD_CLASSES.contains(&base) {
+            out.insert(class.clone(), ());
         }
     }
     for child in &obj.children {
@@ -979,14 +1165,19 @@ pub fn generate_class_extensions_from_map(custom: &BTreeMap<String, ()>) -> Opti
         write!(
             out,
             "<XUIClass Name=\"{class_name}\" BaseClassName=\"{base}\""
-        ).unwrap();
+        )
+        .unwrap();
         writeln!(out, " Bitmap=\"\" Icon=\"\" DefaultWidth=\"100\" DefaultHeight=\"100\" Description=\"{class_name}\">").unwrap();
 
         for (name, type_str) in &props {
             if *name == "Unknown" {
                 continue; // Skip unnamed property slots
             }
-            writeln!(out, "<PropDef Flags=\"\" Name=\"{name}\" Type=\"{type_str}\" Editor=\"\">").unwrap();
+            writeln!(
+                out,
+                "<PropDef Flags=\"\" Name=\"{name}\" Type=\"{type_str}\" Editor=\"\">"
+            )
+            .unwrap();
             writeln!(out, "<DefaultVal></DefaultVal>").unwrap();
             writeln!(out, "</PropDef>").unwrap();
         }
@@ -1009,14 +1200,19 @@ pub fn generate_single_class_extension(class_name: &str) -> String {
     write!(
         out,
         "<XUIClass Name=\"{class_name}\" BaseClassName=\"{base}\""
-    ).unwrap();
+    )
+    .unwrap();
     writeln!(out, " Bitmap=\"\" Icon=\"\" DefaultWidth=\"100\" DefaultHeight=\"100\" Description=\"{class_name}\">").unwrap();
 
     for (name, type_str) in &props {
         if *name == "Unknown" {
             continue;
         }
-        writeln!(out, "<PropDef Flags=\"\" Name=\"{name}\" Type=\"{type_str}\" Editor=\"\">").unwrap();
+        writeln!(
+            out,
+            "<PropDef Flags=\"\" Name=\"{name}\" Type=\"{type_str}\" Editor=\"\">"
+        )
+        .unwrap();
         writeln!(out, "<DefaultVal></DefaultVal>").unwrap();
         writeln!(out, "</PropDef>").unwrap();
     }

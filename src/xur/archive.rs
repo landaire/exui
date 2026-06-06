@@ -194,7 +194,11 @@ impl XuizArchive {
     }
 
     /// Read an entry's raw bytes from the given data source.
-    pub fn read<'a, S: ReadAt + ?Sized>(&self, source: &'a S, entry: &Entry) -> std::io::Result<&'a [u8]> {
+    pub fn read<'a, S: ReadAt + ?Sized>(
+        &self,
+        source: &'a S,
+        entry: &Entry,
+    ) -> std::io::Result<&'a [u8]> {
         source.read_at(entry.range.clone())
     }
 
@@ -207,20 +211,21 @@ impl XuizArchive {
     pub fn find_xuib<S: ReadAt + ?Sized>(&self, source: &S) -> Option<&Entry> {
         // Prefer .xur extension
         for entry in &self.entries {
-            if entry.name.ends_with(".xur") {
-                if let Ok(data) = self.read(source, entry) {
-                    if data.len() >= 4 && &data[0..4] == XUIB_MAGIC {
-                        return Some(entry);
-                    }
-                }
+            if entry.name.ends_with(".xur")
+                && let Ok(data) = self.read(source, entry)
+                && data.len() >= 4
+                && &data[0..4] == XUIB_MAGIC
+            {
+                return Some(entry);
             }
         }
         // Fallback: any entry starting with XUIB magic
         for entry in &self.entries {
-            if let Ok(data) = self.read(source, entry) {
-                if data.len() >= 4 && &data[0..4] == XUIB_MAGIC {
-                    return Some(entry);
-                }
+            if let Ok(data) = self.read(source, entry)
+                && data.len() >= 4
+                && &data[0..4] == XUIB_MAGIC
+            {
+                return Some(entry);
             }
         }
         None

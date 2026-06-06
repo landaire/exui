@@ -103,7 +103,10 @@ fn decompile_xuiz(
     data: &[u8],
     out_dir: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive::{self, ReadAt};
+    use exui::xur::archive::ReadAt;
+    use exui::xur::archive::{
+        self,
+    };
 
     let archive = archive::XuizArchive::parse(data)?;
 
@@ -152,10 +155,7 @@ fn decompile_xuiz(
 
     // Emit per-class extension files in an `extensions/` sibling directory
     if !all_custom.is_empty() {
-        let ext_dir = out_dir
-            .parent()
-            .unwrap_or(out_dir)
-            .join("extensions");
+        let ext_dir = out_dir.parent().unwrap_or(out_dir).join("extensions");
         std::fs::create_dir_all(&ext_dir)?;
         for class_name in all_custom.keys() {
             let ext_path = ext_dir.join(format!("{class_name}.xml"));
@@ -171,7 +171,11 @@ fn decompile_xuiz(
         return Err(format!(
             "{} of {} XUR files failed to decompile",
             errors.len(),
-            archive.entries.iter().filter(|e| e.name.ends_with(".xur")).count()
+            archive
+                .entries
+                .iter()
+                .filter(|e| e.name.ends_with(".xur"))
+                .count()
         )
         .into());
     }
@@ -196,7 +200,10 @@ fn decompile_single_xur(
             let mut custom = std::collections::BTreeMap::new();
             exui::xui::collect_custom_classes_from_xur(&xur, &mut custom);
             if !custom.is_empty() {
-                let ext_dir = path.parent().unwrap_or(std::path::Path::new(".")).join("extensions");
+                let ext_dir = path
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+                    .join("extensions");
                 std::fs::create_dir_all(&ext_dir)?;
                 for class_name in custom.keys() {
                     let ext_path = ext_dir.join(format!("{class_name}.xml"));
@@ -230,7 +237,10 @@ fn cmd_extract(
     input: &std::path::Path,
     output: Option<&std::path::Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive::{self, ReadAt};
+    use exui::xur::archive::ReadAt;
+    use exui::xur::archive::{
+        self,
+    };
 
     let file = std::fs::File::open(input)?;
     let mmap = unsafe { memmap2::Mmap::map(&file)? };
@@ -239,7 +249,7 @@ fn cmd_extract(
         return Err("input is not a XUIZ archive".into());
     }
 
-    let archive = archive::XuizArchive::parse(&*mmap)?;
+    let archive = archive::XuizArchive::parse(&mmap)?;
     let out_dir = match output {
         Some(p) => p.to_path_buf(),
         None => default_output_dir(input),
@@ -259,7 +269,11 @@ fn cmd_extract(
         eprintln!("{} ({} bytes)", entry.name, entry.size());
     }
 
-    eprintln!("extracted {} files to {}", archive.entries.len(), out_dir.display());
+    eprintln!(
+        "extracted {} files to {}",
+        archive.entries.len(),
+        out_dir.display()
+    );
     Ok(())
 }
 
@@ -277,8 +291,12 @@ fn cmd_list(input: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
         return Err("input is not a XUIZ archive".into());
     }
 
-    let archive = archive::XuizArchive::parse(&*mmap)?;
-    println!("XUIZ v{} ({} entries)", archive.version, archive.entries.len());
+    let archive = archive::XuizArchive::parse(&mmap)?;
+    println!(
+        "XUIZ v{} ({} entries)",
+        archive.version,
+        archive.entries.len()
+    );
     for entry in &archive.entries {
         println!("  {:>8}  {}", entry.size(), entry.name);
     }

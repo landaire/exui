@@ -35,9 +35,10 @@ use super::TimelineValue;
 use super::Xur;
 use super::object_flags;
 use super::section_tag;
-use crate::xur::parse::{
-    XUIELEMENT_TYPES_V5, get_compound_sub_types, get_hierarchy, is_gradient_array_prop,
-};
+use crate::xur::parse::XUIELEMENT_TYPES_V5;
+use crate::xur::parse::get_compound_sub_types;
+use crate::xur::parse::get_hierarchy;
+use crate::xur::parse::is_gradient_array_prop;
 
 const HEADER_SIZE: usize = 0x14;
 const SECTION_HEADER_SIZE: usize = 12;
@@ -238,8 +239,8 @@ pub fn parse(data: &[u8]) -> Result<Xur<'_>, ParseError> {
     let header = parse_header(data)?;
     let sections = locate_sections(data, header.section_count as usize)?;
 
-    let strn = section(data, &sections, section_tag::STRN)
-        .ok_or(ParseError::MissingSection("STRN"))?;
+    let strn =
+        section(data, &sections, section_tag::STRN).ok_or(ParseError::MissingSection("STRN"))?;
     let data_sect =
         section(data, &sections, section_tag::DATA).ok_or(ParseError::MissingSection("DATA"))?;
     let vect = section(data, &sections, section_tag::VECT).unwrap_or(&[]);
@@ -300,8 +301,7 @@ fn locate_sections(data: &[u8], count: usize) -> Result<Vec<super::SectionHeader
         let off = BigEndian::read_u32(&data[t + 4..t + 8]) as usize;
         off == t + count * SECTION_HEADER_SIZE
     });
-    let table_start =
-        table_start.ok_or(ParseError::MissingSection("STRN"))?;
+    let table_start = table_start.ok_or(ParseError::MissingSection("STRN"))?;
     let end = table_start + count * SECTION_HEADER_SIZE;
     if end > data.len() {
         return Err(ParseError::TooShort {
@@ -323,7 +323,11 @@ fn locate_sections(data: &[u8], count: usize) -> Result<Vec<super::SectionHeader
         .collect())
 }
 
-fn section<'a>(data: &'a [u8], sections: &[super::SectionHeader], tag: &[u8; 4]) -> Option<&'a [u8]> {
+fn section<'a>(
+    data: &'a [u8],
+    sections: &[super::SectionHeader],
+    tag: &[u8; 4],
+) -> Option<&'a [u8]> {
     let s = sections.iter().find(|s| &s.tag == tag)?;
     let start = s.offset as usize;
     let end = start + s.size as usize;
@@ -351,7 +355,7 @@ fn parse_string_table(data: &[u8]) -> Result<Vec<String>, ParseError> {
     Ok(strings)
 }
 
-fn class_name<'a>(strings: &'a [String], index: u32) -> &'a str {
+fn class_name(strings: &[String], index: u32) -> &str {
     index
         .checked_sub(1)
         .and_then(|i| strings.get(i as usize))
@@ -405,9 +409,10 @@ fn parse_object<'a>(
     if flags & object_flags::HAS_CHILDREN != 0 {
         let child_count = c.varint()?;
         for i in 0..child_count {
-            children.push(parse_object(c, full, strings, pools, tables).map_err(|e| {
-                ParseError::BadObject(format!("child {i}/{child_count}: {e}"))
-            })?);
+            children.push(
+                parse_object(c, full, strings, pools, tables)
+                    .map_err(|e| ParseError::BadObject(format!("child {i}/{child_count}: {e}")))?,
+            );
         }
     }
 
@@ -464,7 +469,10 @@ fn read_level(
         if bitmask & (1 << bit) == 0 {
             continue;
         }
-        let ty = types.get(bit as usize).copied().unwrap_or(PropType::Unsigned);
+        let ty = types
+            .get(bit as usize)
+            .copied()
+            .unwrap_or(PropType::Unsigned);
         if is_array(types, bit) {
             let count = c.varint()?;
             for _ in 0..count {
@@ -653,7 +661,11 @@ fn build_keyframes(
     keyframes
 }
 
-fn type_timeline_value(prop_type: Option<PropType>, value: u32, pools: &Pools<'_>) -> TimelineValue {
+fn type_timeline_value(
+    prop_type: Option<PropType>,
+    value: u32,
+    pools: &Pools<'_>,
+) -> TimelineValue {
     match prop_type {
         Some(PropType::Bool) => TimelineValue::Bool(value != 0),
         Some(PropType::Float) => TimelineValue::Float(pools.float(value)),
