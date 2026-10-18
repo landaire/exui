@@ -1,0 +1,52 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: "(archive.flags(), archive.entry_count(), entries)"
+---
+(
+    ArchiveFlags(
+        0,
+    ),
+    4,
+    [
+        Entry {
+            name: "Scenes\\Main.XUR",
+            offset: EntryOffset(
+                0,
+            ),
+            size: EntrySize(
+                5,
+            ),
+            trailer: None,
+        },
+        Entry {
+            name: "scenes/main.xur",
+            offset: EntryOffset(
+                5,
+            ),
+            size: EntrySize(
+                8,
+            ),
+            trailer: None,
+        },
+        Entry {
+            name: "Img_\u{00C4}.png",
+            offset: EntryOffset(
+                13,
+            ),
+            size: EntrySize(
+                0,
+            ),
+            trailer: None,
+        },
+        Entry {
+            name: "nul",
+            offset: EntryOffset(
+                13,
+            ),
+            size: EntrySize(
+                8,
+            ),
+            trailer: None,
+        },
+    ],
+)

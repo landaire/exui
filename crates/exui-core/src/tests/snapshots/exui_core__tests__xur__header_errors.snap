@@ -1,0 +1,56 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: results
+---
+[
+    Err(
+        BadMagic {
+            found: [
+                89,
+                85,
+                73,
+                66,
+            ],
+        },
+    ),
+    Err(
+        UnsupportedVersion {
+            version: 8,
+        },
+    ),
+    Err(
+        UnsupportedSchema {
+            schema: 13,
+        },
+    ),
+    Err(
+        FileSizeMismatch {
+            header: 67,
+            actual: 68,
+        },
+    ),
+    Err(
+        TooFewSections {
+            count: 1,
+        },
+    ),
+    Err(
+        MissingSection {
+            tag: SectionTag(DATA),
+        },
+    ),
+    Err(
+        SectionOutOfBounds {
+            tag: SectionTag(DATA),
+            offset: 64,
+            size: 256,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Header,
+            offset: 14,
+            needed: 4,
+        },
+    ),
+]

@@ -1,138 +1,138 @@
-use exui::xur::Xur;
-use exui::xur::archive::ReadAt;
-use exui::xur::archive::XuizArchive;
+use std::collections::BTreeSet;
+use std::fmt::Write;
+use std::fs;
 
-fn init_tracing() {
-    use tracing_subscriber::EnvFilter;
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_test_writer()
-        .try_init();
-}
+use exui::archive::Archive;
+use exui::error::SceneError;
+use exui::registry;
+use exui::scene::ElementId;
+use exui::scene::Property;
+use exui::scene::Scalar;
+use exui::scene::Scene;
+use exui::scene::Value;
+use exui::xui::Xml;
+use exui::xui::to_xui;
+use exui_core::Document;
+use exui_core::XurError;
 
-fn parse_file(path: &str) -> Xur<'static> {
-    init_tracing();
-    let data = std::fs::read(path).expect("failed to read file");
-    let data = Box::leak(data.into_boxed_slice());
-    Xur::parse(data).expect("failed to parse")
+fn parse_file(path: &str) -> Scene {
+    let data = fs::read(path).expect("failed to read file");
+    let registry = registry::dash_6717().expect("registry builds");
+
+    Scene::parse(&data, &registry).expect("failed to parse")
 }
 
 fn decompile_file(path: &str) -> String {
-    let xur = parse_file(path);
-    exui::xui::to_xui(&xur).expect("failed to decompile")
+    let data = fs::read(path).expect("failed to read file");
+    let registry = registry::dash_6717().expect("registry builds");
+    let document = Document::parse(&data, &registry).expect("failed to parse");
+
+    to_xui(&document, &registry).expect("failed to decompile")
 }
 
 fn read_reference(path: &str) -> String {
-    std::fs::read_to_string(path).expect("failed to read reference")
+    fs::read_to_string(path).expect("failed to read reference")
 }
 
-// ---------------------------------------------------------------------------
-// Snapshot helper
-// ---------------------------------------------------------------------------
+fn read_hud() -> Vec<u8> {
+    fs::read("test-data/hud").expect("read")
+}
 
-fn debug_tree(xur: &Xur<'_>) -> String {
+/// Element classes and property values, one line each, indented by depth.
+fn debug_tree(scene: &Scene) -> String {
     let mut out = String::new();
-    debug_object(xur, &xur.root, &mut out, 0);
+    let mut stack = vec![(ElementId(0), 0)];
+    while let Some((id, depth)) = stack.pop() {
+        let element = scene.element(id).expect("element exists");
+        let indent = "  ".repeat(depth);
+        writeln!(out, "{indent}{}", element.class.name()).unwrap();
+
+        for property in &element.properties {
+            for value in &property.values {
+                writeln!(
+                    out,
+                    "{indent}  [{}] {}",
+                    property.index.0,
+                    format_value(value)
+                )
+                .unwrap();
+            }
+        }
+
+        stack.extend(
+            element
+                .children
+                .iter()
+                .rev()
+                .map(|child| (*child, depth + 1)),
+        );
+    }
+
     out
 }
 
-fn debug_object(xur: &Xur<'_>, obj: &exui::xur::Object<'_>, out: &mut String, depth: usize) {
-    use std::fmt::Write;
-    let indent = "  ".repeat(depth);
-    let class = xur.get_string(obj.class_name).unwrap_or("??");
-    writeln!(out, "{indent}{class}").unwrap();
-
-    for group in &obj.properties {
-        for (i, val) in group.values.iter().enumerate() {
-            let bit = (0..32)
-                .filter(|b| group.bitmask & (1 << b) != 0)
-                .nth(i)
-                .unwrap_or(99);
-            writeln!(out, "{indent}  [{bit}] {}", format_value(xur, val)).unwrap();
-        }
-    }
-
-    for child in &obj.children {
-        debug_object(xur, child, out, depth + 1);
-    }
-}
-
-fn format_value(xur: &Xur<'_>, val: &exui::xur::PropertyValue) -> String {
-    match val {
-        exui::xur::PropertyValue::Bool(v) => format!("bool={v}"),
-        exui::xur::PropertyValue::Integer(v) => format!("int={v}"),
-        exui::xur::PropertyValue::Unsigned(v) => format!("uint={v}"),
-        exui::xur::PropertyValue::Float(v) => format!("float={v}"),
-        exui::xur::PropertyValue::String(idx) => {
-            let s = xur.get_string(*idx).unwrap_or("??");
-            format!("str={s:?}")
-        }
-        exui::xur::PropertyValue::Color(v) => format!("color=0x{v:08x}"),
-        exui::xur::PropertyValue::Vector(idx) => {
-            if let Some((x, y, z)) = xur.get_vector(*idx) {
-                format!("vec=({x},{y},{z})")
-            } else {
-                format!("vec=VECT[{idx}]")
-            }
-        }
-        exui::xur::PropertyValue::Quaternion(idx) => {
-            if let Some((x, y, z, w)) = xur.get_quaternion(*idx) {
-                format!("quat=({x},{y},{z},{w})")
-            } else {
-                format!("quat=QUAT[{idx}]")
-            }
-        }
-        exui::xur::PropertyValue::Object(groups) => {
-            let mut parts = Vec::new();
-            for g in groups {
-                for v in &g.values {
-                    parts.push(format_value(xur, v));
-                }
-            }
+fn format_value(value: &Value) -> String {
+    match value {
+        Value::Scalar(scalar) => format_scalar(scalar),
+        Value::Points(points) => format!("points={}", points.len()),
+        Value::Compound(properties) => {
+            let parts: Vec<String> = properties
+                .iter()
+                .flat_map(|property: &Property| property.values.iter().map(format_value))
+                .collect();
             format!("compound={{{}}}", parts.join(", "))
         }
-        exui::xur::PropertyValue::Custom(offset) => format!("custom=CUST[{offset}]"),
-        exui::xur::PropertyValue::Unknown(bytes) => format!("raw={}B", bytes.len()),
     }
 }
 
-// ===========================================================================
-// Snapshot tests: verify parsing produces correct tree structure
-// ===========================================================================
+fn format_scalar(scalar: &Scalar) -> String {
+    match scalar {
+        Scalar::Bool(value) => format!("bool={value}"),
+        Scalar::Integer(value) => format!("int={value}"),
+        Scalar::Unsigned(value) => format!("uint={value}"),
+        Scalar::Float(value) => format!("float={value}"),
+        Scalar::String(Some(text)) => format!("str={text:?}"),
+        Scalar::String(None) => "str=null".to_string(),
+        Scalar::Color(color) => format!("color=0x{:08x}", color.argb()),
+        Scalar::Vector(vector) => format!("vec=({},{},{})", vector.x, vector.y, vector.z),
+        Scalar::Quaternion(quaternion) => format!(
+            "quat=({},{},{},{})",
+            quaternion.x, quaternion.y, quaternion.z, quaternion.w
+        ),
+        Scalar::Raw(value) => format!("raw={value}"),
+    }
+}
 
 #[test]
 fn snapshot_simple() {
-    let xur = parse_file("test-data/simple.xur");
-    insta::assert_snapshot!(debug_tree(&xur));
+    insta::assert_snapshot!(debug_tree(&parse_file("test-data/simple.xur")));
 }
 
 #[test]
 fn snapshot_controls_demo1() {
-    let xur = parse_file("test-data/samples/controls_demo1.xur");
-    insta::assert_snapshot!(debug_tree(&xur));
+    insta::assert_snapshot!(debug_tree(&parse_file(
+        "test-data/samples/controls_demo1.xur"
+    )));
 }
 
 #[test]
 fn snapshot_pause_menu() {
-    let xur = parse_file("test-data/samples/PauseMenu.xur");
-    insta::assert_snapshot!(debug_tree(&xur));
+    insta::assert_snapshot!(debug_tree(&parse_file("test-data/samples/PauseMenu.xur")));
 }
 
 #[test]
 fn snapshot_tabbed_scene() {
-    let xur = parse_file("test-data/samples/tabbed_scene.xur");
-    insta::assert_snapshot!(debug_tree(&xur));
+    insta::assert_snapshot!(debug_tree(&parse_file(
+        "test-data/samples/tabbed_scene.xur"
+    )));
 }
 
 #[test]
 fn snapshot_xuieffect_main() {
-    let xur = parse_file("test-data/samples/xuieffect_main.xur");
-    insta::assert_snapshot!(debug_tree(&xur));
+    insta::assert_snapshot!(debug_tree(&parse_file(
+        "test-data/samples/xuieffect_main.xur"
+    )));
 }
-
-// ===========================================================================
-// Round-trip tests: decompile XUR and compare against reference XUI
-// ===========================================================================
 
 #[test]
 fn roundtrip_simple() {
@@ -155,12 +155,9 @@ fn roundtrip_xuieffect_main() {
     pretty_assertions::assert_eq!(decompiled, reference);
 }
 
-// These files contain timeline data that we skip during parsing.
-// The reference .xui files include <Timelines> XML that we don't yet emit.
-// PauseMenu and tabbed_scene reference .xui files contain design-time elements
-// and omit compiler-generated template children, so they can't be used for
-// exact roundtrip comparison. We use .expected.xui files instead, which
-// represent the correct decompilation of the binary.
+// The PauseMenu and tabbed_scene reference .xui files hold design-time
+// elements and lack compiler-generated template children, so these compare
+// against .expected.xui files holding the decompilation of the binary.
 #[test]
 fn roundtrip_pause_menu() {
     let decompiled = decompile_file("test-data/samples/PauseMenu.xur");
@@ -175,132 +172,120 @@ fn roundtrip_tabbed_scene() {
     pretty_assertions::assert_eq!(decompiled, reference);
 }
 
-// ===========================================================================
-// XUIZ archive tests
-// ===========================================================================
-
 #[test]
 fn xuiz_archive_dashskn1() {
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/blades/dashskn1")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
-    assert_eq!(archive.version, 1);
-    assert_eq!(archive.entries.len(), 1);
-    assert_eq!(archive.entries[0].name, "BladeSkin.xur");
-    let entry = archive.find_xuib(data).expect("no XUIB in archive");
-    let xuib_data = data.read_at(entry.range.clone()).expect("read entry");
-    assert_eq!(&xuib_data[0..4], b"XUIB");
+    let data = fs::read("test-data/blades/dashskn1").expect("read");
+    let archive = Archive::parse(&data).expect("parse XUIZ");
+    let entries = archive.entries().expect("entries");
+
+    assert_eq!(archive.version(), 1);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].name, "BladeSkin.xur");
+    assert!(entries[0].data.starts_with(b"XUIB"));
 }
 
 #[test]
 fn xuiz_archive_dashmain() {
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/blades/dashmain")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
-    assert_eq!(archive.version, 1);
-    assert!(archive.entries.len() > 1);
-    assert!(archive.entries[0].name.ends_with(".xur"));
-    assert!(archive.entries.iter().any(|e| e.name.ends_with(".png")));
-    let xuib_entry = archive.find_xuib(data).expect("no XUIB");
-    let xuib_data = data.read_at(xuib_entry.range.clone()).expect("read");
-    assert_eq!(&xuib_data[0..4], b"XUIB");
+    let data = fs::read("test-data/blades/dashmain").expect("read");
+    let archive = Archive::parse(&data).expect("parse XUIZ");
+    let entries = archive.entries().expect("entries");
+
+    assert_eq!(archive.version(), 1);
+    assert!(entries.len() > 1);
+    assert!(entries[0].name.ends_with(".xur"));
+    assert!(entries[0].data.starts_with(b"XUIB"));
+    assert!(entries.iter().any(|entry| entry.name.ends_with(".png")));
 }
 
-// ===========================================================================
-// XUIB v8 (the `hud` dashboard archive: XUIZ v3 of XUIB v8 resources)
-// ===========================================================================
+/// The test archives come from an older dashboard than 6717. Its scenes
+/// decompile except those using classes 6717 no longer registers, which the
+/// original cannot load either.
+#[test]
+fn blades_archives_decompile() {
+    let registry = registry::dash_6717().expect("registry builds");
+    let mut paths: Vec<_> = fs::read_dir("test-data/blades")
+        .expect("read dir")
+        .map(|entry| entry.expect("entry").path())
+        .collect();
+    paths.sort();
+
+    let mut decompiled = 0;
+    let mut unknown_classes = BTreeSet::new();
+    for path in paths {
+        let data = fs::read(&path).expect("read");
+        let entries = Archive::parse(&data)
+            .expect("parse XUIZ")
+            .entries()
+            .expect("entries");
+        for entry in entries.iter().filter(|entry| entry.name.ends_with(".xur")) {
+            match Scene::parse(entry.data, &registry) {
+                Ok(scene) => {
+                    Xml(&scene).to_string();
+                    decompiled += 1;
+                }
+                Err(SceneError::Version5(XurError::UnknownClass { name, .. })) => {
+                    unknown_classes.insert(name.to_string());
+                }
+                Err(err) => panic!("{}/{}: {err}", path.display(), entry.name),
+            }
+        }
+    }
+
+    assert_eq!(decompiled, 194);
+    assert_eq!(
+        unknown_classes.into_iter().collect::<Vec<_>>(),
+        ["XuiBOTDContainer", "XuiBOTDScene"]
+    );
+}
 
 #[test]
 fn xuiz_archive_hud_is_v3() {
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/hud")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
-    assert_eq!(archive.version, 3);
-    // v3 names are single-byte ASCII; a botched decode yields CJK mojibake.
-    assert!(archive.entries.iter().any(|e| e.name == "Strings.xus"));
+    let data = read_hud();
+    let archive = Archive::parse(&data).expect("parse XUIZ");
+    let entries = archive.entries().expect("entries");
+
+    assert_eq!(archive.version(), 3);
+    // Version 3 names are single-byte; a UTF-16 decode yields CJK text.
+    assert!(entries.iter().any(|entry| entry.name == "Strings.xus"));
     assert!(
-        archive
-            .entries
+        entries
             .iter()
-            .any(|e| e.name == "ConsoleContract.xur")
+            .any(|entry| entry.name == "ConsoleContract.xur")
     );
 }
 
-/// Every XUIB v8 resource in the dashboard archive must decompile to XUI XML.
+/// Every XUR version 8 resource in the dashboard archive decompiles.
 #[test]
 fn v8_all_hud_xurs_decompile() {
-    init_tracing();
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/hud")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
+    let data = read_hud();
+    let entries = Archive::parse(&data)
+        .expect("parse XUIZ")
+        .entries()
+        .expect("entries");
+    let registry = registry::dash_6717().expect("registry builds");
 
     let mut total = 0;
-    for entry in &archive.entries {
-        if !entry.name.ends_with(".xur") {
-            continue;
-        }
+    let mut keyframe_files = 0;
+    for entry in entries.iter().filter(|entry| entry.name.ends_with(".xur")) {
         total += 1;
-        let bytes = data.read_at(entry.range.clone()).expect("read entry");
-        assert_eq!(&bytes[0..4], b"XUIB", "{}: not XUIB", entry.name);
+        assert_eq!(&entry.data[0..4], b"XUIB", "{}: not XUIB", entry.name);
         assert_eq!(
-            u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
-            8,
-            "{}: expected XUIB v8",
+            &entry.data[4..8],
+            &8u32.to_be_bytes(),
+            "{}: not version 8",
             entry.name
         );
-        let xur = Xur::parse(bytes).unwrap_or_else(|e| panic!("{}: parse failed: {e}", entry.name));
-        let xml = exui::xui::to_xui(&xur)
-            .unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
+
+        let scene = Scene::parse(entry.data, &registry)
+            .unwrap_or_else(|err| panic!("{}: parse failed: {err}", entry.name));
+        let xml = Xml(&scene).to_string();
         assert!(xml.starts_with("<Xui"), "{}: unexpected XML", entry.name);
-    }
-    assert_eq!(total, 34, "expected 34 XUR resources");
-}
-
-/// Every v8 timeline keyframe value must resolve to a real pool entry.
-/// A regression in the KEYD/KEYP keyframe decoding shows up as out-of-range
-/// pool indices, which the writer renders as `VECT[..]`/`FLOT[..]` placeholders.
-#[test]
-fn v8_timeline_keyframe_values_resolve() {
-    init_tracing();
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/hud")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
-
-    let mut keyframe_files = 0;
-    for entry in &archive.entries {
-        if !entry.name.ends_with(".xur") {
-            continue;
-        }
-        let bytes = data.read_at(entry.range.clone()).expect("read entry");
-        let xur = Xur::parse(bytes).unwrap_or_else(|e| panic!("{}: parse failed: {e}", entry.name));
-        let xml = exui::xui::to_xui(&xur)
-            .unwrap_or_else(|e| panic!("{}: to_xui failed: {e}", entry.name));
-        for placeholder in ["VECT[", "FLOT[", "QUAT[", "COLR["] {
-            assert!(
-                !xml.contains(placeholder),
-                "{}: unresolved {placeholder} pool reference in output",
-                entry.name
-            );
-        }
         if xml.contains("<KeyFrame>") {
             keyframe_files += 1;
         }
     }
+
+    assert_eq!(total, 34, "expected 34 XUR resources");
     assert!(
         keyframe_files >= 5,
         "expected v8 files with timeline keyframes"
@@ -309,18 +294,17 @@ fn v8_timeline_keyframe_values_resolve() {
 
 #[test]
 fn snapshot_v8_console_contract() {
-    let data: &'static [u8] = Box::leak(
-        std::fs::read("test-data/hud")
-            .expect("read")
-            .into_boxed_slice(),
-    );
-    let archive = XuizArchive::parse(data).expect("parse XUIZ");
-    let entry = archive
-        .entries
+    let data = read_hud();
+    let entries = Archive::parse(&data)
+        .expect("parse XUIZ")
+        .entries()
+        .expect("entries");
+    let entry = entries
         .iter()
-        .find(|e| e.name == "ConsoleContract.xur")
+        .find(|entry| entry.name == "ConsoleContract.xur")
         .expect("ConsoleContract.xur");
-    let bytes = data.read_at(entry.range.clone()).expect("read");
-    let xur = Xur::parse(bytes).expect("parse");
-    insta::assert_snapshot!(debug_tree(&xur));
+    let registry = registry::dash_6717().expect("registry builds");
+    let scene = Scene::parse(entry.data, &registry).expect("parse");
+
+    insta::assert_snapshot!(debug_tree(&scene));
 }

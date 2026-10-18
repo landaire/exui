@@ -1,6 +1,6 @@
 ---
 source: tests/decompile.rs
-expression: debug_tree(&xur)
+expression: "debug_tree(&parse_file(\"test-data/samples/xuieffect_main.xur\"))"
 ---
 XuiCanvas
   [1] float=640
@@ -24,7 +24,7 @@ XuiCanvas
       [3] vec=(196.99998,37,0)
       [6] str="EffectScene\\XuiEdit1"
       [7] str="EffectScene\\XuiButton1"
-      [2] uint=30
+      [2] int=30
     XuiScene
       [0] str="EffectScene"
       [1] float=256

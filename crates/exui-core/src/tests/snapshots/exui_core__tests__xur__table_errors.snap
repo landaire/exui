@@ -1,0 +1,17 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "[Document::parse(&bad_string, &registry).map(|_| ()),\nDocument::parse(&bad_vect.build(), &registry).map(|_| ()),]"
+---
+[
+    Err(
+        InvalidStringTable {
+            offset: 44,
+        },
+    ),
+    Err(
+        MalformedFloatTable {
+            tag: SectionTag(VECT),
+            size: 13,
+        },
+    ),
+]

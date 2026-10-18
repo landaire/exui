@@ -1,0 +1,114 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "dump(&doc, &registry)"
+---
+allocation_hints: Some(AllocationHints([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+strings: ["XuiCanvas", "root", "TestWidget", "widget", "hello", "XuiFigure", "fig", "empty", "Normal", "EndNormal"]
+vectors: 2
+quaternions: 2
+custom: [00, 00, 00, 01, 55, 00, 00, 00, 04, de, ad, be, ef]
+object ObjectId(0): XuiCanvas parent None
+  Id:
+    - String(Some("root"))
+  Width:
+    - Float(640.0)
+  Position:
+    - VectorIndex(0) = Some(Vector3 { x: 1.0, y: 2.0, z: 3.0 })
+  Rotation:
+    - QuaternionIndex(0) = Some(Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 })
+  Anchor:
+    - Unsigned(15)
+  Show:
+    - Bool(true)
+  children: [ObjectId(1), ObjectId(2), ObjectId(3)]
+  named frame Some("Normal") at FrameTime(0) command FrameCommand(0) target None
+  named frame Some("EndNormal") at FrameTime(10) command FrameCommand(3) target Some("Normal")
+  timeline Some("fig") target Some(ObjectId(2))
+    path ["Width"] level Some((Some("XuiElement"), LevelsUp(1), PropIndex(1))) element None has_value true
+    path ["Fill", "FillColor"] level Some((Some("XuiFigure"), LevelsUp(0), PropIndex(1))) element None has_value true
+    path ["Position"] level Some((Some("XuiElement"), LevelsUp(1), PropIndex(3))) element Some(ElementIndex(0)) has_value true
+    path ["Stroke"] level Some((Some("XuiFigure"), LevelsUp(0), PropIndex(0))) element None has_value false
+    keyframe FrameTime(0) Interpolation(0) EaseIn(0) EaseOut(0) EaseScale(0)
+      Float(100.0)
+      Color(Color(4278190080))
+      Vector(Vector3 { x: 1.0, y: 2.0, z: 3.0 })
+    keyframe FrameTime(20) Interpolation(2) EaseIn(10) EaseOut(20) EaseScale(30)
+      Float(200.0)
+      Color(Color(4294967295))
+      Vector(Vector3 { x: -4.0, y: 5.5, z: 0.0 })
+  timeline Some("widget") target Some(ObjectId(1))
+    path ["Label"] level Some((Some("TestWidget"), LevelsUp(0), PropIndex(4))) element None has_value true
+    path ["Turn"] level Some((Some("TestWidget"), LevelsUp(0), PropIndex(7))) element None has_value true
+    path ["Flag"] level Some((Some("TestWidget"), LevelsUp(0), PropIndex(0))) element None has_value true
+    path ["Count"] level Some((Some("TestWidget"), LevelsUp(0), PropIndex(1))) element None has_value true
+    path ["Mode"] level Some((Some("TestWidget"), LevelsUp(0), PropIndex(2))) element None has_value true
+    keyframe FrameTime(5) Interpolation(1) EaseIn(0) EaseOut(0) EaseScale(0)
+      String(Some("Normal"))
+      Quaternion(Quaternion { x: 0.5, y: 0.5, z: 0.5, w: 0.5 })
+      Bool(false)
+      Integer(9)
+      Unsigned(305419896)
+object ObjectId(1): TestWidget parent Some(ObjectId(0))
+  Id:
+    - String(Some("widget"))
+  Flag:
+    - Bool(true)
+  Count:
+    - Integer(-5)
+  Mode:
+    - Unsigned(7)
+  Scale:
+    - Float(1.5)
+  Label:
+    - String(Some("hello"))
+  Tint:
+    - Color(Color(2164195328))
+  Offset:
+    - VectorIndex(1) = Some(Vector3 { x: -4.0, y: 5.5, z: 0.0 })
+  Turn:
+    - QuaternionIndex(1) = Some(Quaternion { x: 0.5, y: 0.5, z: 0.5, w: 0.5 })
+  Shape:
+    -
+      Size:
+        - Float(8.0)
+      Tint:
+        - Color(Color(4278255360))
+  Blob:
+    - CustomOffset(5) = Some([de, ad, be, ef])
+  Samples [3]:
+    - Float(0.25)
+    - Float(0.5)
+    - Float(0.75)
+  Layers [2]:
+    -
+      Size:
+        - Float(10.0)
+    -
+      Size:
+        - Float(20.0)
+object ObjectId(2): XuiFigure parent Some(ObjectId(0))
+  Id:
+    - String(Some("fig"))
+  Fill:
+    -
+      FillType:
+        - Unsigned(2)
+      FillColor:
+        - Color(Color(4279312947))
+      Gradient:
+        -
+          Radial:
+            - Bool(true)
+          NumStops:
+            - Integer(2)
+          StopColor [2]:
+            - Color(Color(4294967295))
+            - Color(Color(4278190080))
+          StopPos [2]:
+            - Float(0.0)
+            - Float(1.0)
+  Closed:
+    - Bool(true)
+object ObjectId(3): TestWidget parent Some(ObjectId(0))
+  Id:
+    - String(Some("empty"))

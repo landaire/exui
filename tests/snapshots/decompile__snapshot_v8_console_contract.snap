@@ -1,6 +1,6 @@
 ---
 source: tests/decompile.rs
-expression: debug_tree(&xur)
+expression: debug_tree(&scene)
 ---
 XuiCanvas
   [1] float=852
@@ -9,11 +9,11 @@ XuiCanvas
     [0] str="scnConsoleContract"
     [1] float=852
     [2] float=480
-    [0] str="ConsoleContractScene"
-    [5] uint=1
-    [6] uint=1
-    [0] uint=2
-    [1] uint=3
+    [0] raw=2
+    [5] raw=1
+    [6] raw=1
+    [0] raw=2
+    [1] raw=3
     XuiButton
       [0] str="btnSignIn"
       [1] float=287

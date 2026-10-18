@@ -1,0 +1,52 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "[parse(&unknown), parse(&null_class), parse(&count_mismatch),\nparse(&compound_overflow), parse(&truncated), parse(&short_children),]"
+---
+[
+    Err(
+        UnknownClass {
+            offset: 64,
+            name: "XuiScene1",
+        },
+    ),
+    Err(
+        InvalidClassString {
+            offset: 64,
+            index: 0,
+        },
+    ),
+    Err(
+        PropertyCountMismatch {
+            offset: 64,
+            class: "XuiCanvas",
+            declared: 2,
+            actual: 1,
+        },
+    ),
+    Err(
+        CompoundOverflow {
+            offset: 72,
+            property: "Stroke",
+            declared: 1,
+            actual: 2,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 71,
+            needed: 4,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 67,
+            needed: 4,
+        },
+    ),
+]

@@ -1,0 +1,56 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: results
+---
+[
+    Err(
+        TimelineTargetNotFound {
+            offset: 113,
+            element: Some(
+                StringId(
+                    3,
+                ),
+            ),
+        },
+    ),
+    Ok(
+        (),
+    ),
+    Err(
+        PropertyPathLevel {
+            offset: 107,
+            class: "XuiCanvas",
+            levels_up: 2,
+        },
+    ),
+    Err(
+        PropertyPathIndex {
+            offset: 107,
+            class: "XuiCanvas",
+            index: 0,
+        },
+    ),
+    Err(
+        PropertyPathNotCompound {
+            offset: 107,
+            property: "Width",
+        },
+    ),
+    Err(
+        EmptyPropertyPath {
+            offset: 108,
+        },
+    ),
+    Err(
+        InvalidVectorIndex {
+            offset: 122,
+            index: 0,
+        },
+    ),
+    Err(
+        InvalidStringIndex {
+            offset: 97,
+            index: 32767,
+        },
+    ),
+]

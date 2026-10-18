@@ -1,8 +1,23 @@
+use std::collections::BTreeMap;
+use std::error::Error;
+use std::fs;
+use std::fs::File;
+use std::path::MAIN_SEPARATOR_STR;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
 use clap::Subcommand;
+use exui::archive::Archive;
+use exui::registry;
+use exui::scene::Scene;
+use exui::xui::ClassExtension;
+use exui::xui::Xml;
+use exui::xui::collect_custom_classes;
+use exui_core::Registry;
+use exui_core::schema::ClassDef;
+use memmap2::Mmap;
 
 #[derive(Parser)]
 #[command(name = "exui", about = "Xbox 360 XUI/XUR tool")]
@@ -37,30 +52,22 @@ enum Command {
     },
 }
 
-fn main() -> ExitCode {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+type CliResult = Result<(), Box<dyn Error>>;
 
-    let cli = Cli::parse();
-    let result = match cli.command {
-        Command::Decompile { input, output } => cmd_decompile(&input, output.as_deref()),
-        Command::Extract { input, output } => cmd_extract(&input, output.as_deref()),
-        Command::List { input } => cmd_list(&input),
-    };
-    match result {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("error: {e}");
-            ExitCode::FAILURE
-        }
-    }
+/// Custom classes by name, collected over every decompiled scene.
+type CustomClasses = BTreeMap<&'static str, &'static ClassDef>;
+
+fn map_file(path: &Path) -> Result<Mmap, Box<dyn Error>> {
+    let file = File::open(path)?;
+
+    // SAFETY: the mapping is read-only and the tool does not modify inputs
+    // while it runs.
+    Ok(unsafe { Mmap::map(&file)? })
 }
 
-/// Derive the default output directory from the input path.
-/// With extension: strip it (`archive.xuiz` -> `archive/`).
-/// Without extension: prefix with `_` (`accountm` -> `_accountm/`).
-fn default_output_dir(input: &std::path::Path) -> PathBuf {
+/// Default output directory: the input path without its extension, or
+/// prefixed with `_` when it has none (`accountm` -> `_accountm/`).
+fn default_output_dir(input: &Path) -> PathBuf {
     if input.extension().is_some() {
         let stem = input.file_stem().unwrap_or_default();
         input.with_file_name(stem)
@@ -70,235 +77,161 @@ fn default_output_dir(input: &std::path::Path) -> PathBuf {
     }
 }
 
-// ---------------------------------------------------------------------------
-// decompile
-// ---------------------------------------------------------------------------
+/// Writes an extension file for each class in `classes` that does not have
+/// one in `dir` yet.
+fn write_extensions(dir: &Path, classes: &CustomClasses) -> CliResult {
+    if classes.is_empty() {
+        return Ok(());
+    }
 
-fn cmd_decompile(
-    input: &std::path::Path,
-    output: Option<&std::path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive;
+    fs::create_dir_all(dir)?;
+    for (name, def) in classes {
+        let path = dir.join(format!("{name}.xml"));
+        if !path.exists() {
+            fs::write(&path, ClassExtension(def).to_string())?;
+            eprintln!("class extension -> {}", path.display());
+        }
+    }
 
-    let file = std::fs::File::open(input)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file)? };
+    Ok(())
+}
 
-    if archive::is_xuiz(&mmap) {
-        let out_dir = output
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| default_output_dir(input));
-        decompile_xuiz(&mmap, &out_dir)
-    } else if archive::is_xuib(&mmap) {
-        decompile_single_xur(&mmap, output)
+fn cmd_decompile(input: &Path, output: Option<&Path>) -> CliResult {
+    let data = map_file(input)?;
+    let registry = registry::dash_6717()?;
+
+    if data.starts_with(b"XUIZ") {
+        let out_dir = output.map_or_else(|| default_output_dir(input), Path::to_path_buf);
+        decompile_archive(&data, &registry, &out_dir)
+    } else if data.starts_with(b"XUIB") {
+        decompile_single(&data, &registry, output)
     } else {
         Err(format!(
             "unknown file format (magic: {:02x?})",
-            &mmap[..4.min(mmap.len())]
+            &data[..4.min(data.len())]
         )
         .into())
     }
 }
 
-fn decompile_xuiz(
-    data: &[u8],
-    out_dir: &std::path::Path,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive::ReadAt;
-    use exui::xur::archive::{
-        self,
-    };
+fn decompile_archive(data: &[u8], registry: &Registry, out_dir: &Path) -> CliResult {
+    let entries = Archive::parse(data)?.entries()?;
+    fs::create_dir_all(out_dir)?;
 
-    let archive = archive::XuizArchive::parse(data)?;
+    let mut custom = CustomClasses::new();
+    let mut scene_count = 0;
+    let mut failures = 0;
+    for entry in &entries {
+        let normalized = entry.name.replace('\\', MAIN_SEPARATOR_STR);
 
-    std::fs::create_dir_all(out_dir)?;
-
-    // Collect all custom classes across all XURs for a single extension file
-    let mut all_custom = std::collections::BTreeMap::new();
-
-    let mut errors = Vec::new();
-    for entry in &archive.entries {
-        let entry_data = data.read_at(entry.range.clone())?;
-        let normalized = entry.name.replace('\\', std::path::MAIN_SEPARATOR_STR);
-
-        if entry.name.ends_with(".xur") {
-            // Decompile XUR to XUI XML
-            let xui_name = normalized.replace(".xur", ".xui");
-            let out_path = out_dir.join(&xui_name);
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            match exui::xur::Xur::parse(entry_data) {
-                Ok(xur) => {
-                    let xml = exui::xui::to_xui(&xur)
-                        .map_err(|e| exui::xur::ParseError::BadObject(e.to_string()))?;
-                    std::fs::write(&out_path, &xml)?;
-                    eprintln!("{} -> {}", entry.name, out_path.display());
-
-                    // Collect custom classes for consolidated extension file
-                    exui::xui::collect_custom_classes_from_xur(&xur, &mut all_custom);
-                }
-                Err(e) => {
-                    eprintln!("{}: {e}", entry.name);
-                    errors.push(format!("{}: {e}", entry.name));
-                }
-            }
-        } else {
-            // Extract non-XUR resources as-is (PNG, XMA, XUS, etc.)
+        if !entry.name.ends_with(".xur") {
             let out_path = out_dir.join(&normalized);
             if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent)?;
+                fs::create_dir_all(parent)?;
             }
-            std::fs::write(&out_path, entry_data)?;
-            eprintln!("{} ({} bytes)", entry.name, entry.size());
+            fs::write(&out_path, entry.data)?;
+            eprintln!("{} ({} bytes)", entry.name, entry.data.len());
+            continue;
         }
-    }
 
-    // Emit per-class extension files in an `extensions/` sibling directory
-    if !all_custom.is_empty() {
-        let ext_dir = out_dir.parent().unwrap_or(out_dir).join("extensions");
-        std::fs::create_dir_all(&ext_dir)?;
-        for class_name in all_custom.keys() {
-            let ext_path = ext_dir.join(format!("{class_name}.xml"));
-            if !ext_path.exists() {
-                let xml = exui::xui::generate_single_class_extension(class_name);
-                std::fs::write(&ext_path, &xml)?;
-                eprintln!("class extension -> {}", ext_path.display());
+        scene_count += 1;
+        let scene = match Scene::parse(entry.data, registry) {
+            Ok(scene) => scene,
+            Err(err) => {
+                eprintln!("{}: {err}", entry.name);
+                failures += 1;
+                continue;
             }
-        }
-    }
+        };
 
-    if !errors.is_empty() {
-        return Err(format!(
-            "{} of {} XUR files failed to decompile",
-            errors.len(),
-            archive
-                .entries
-                .iter()
-                .filter(|e| e.name.ends_with(".xur"))
-                .count()
-        )
-        .into());
-    }
-
-    Ok(())
-}
-
-fn decompile_single_xur(
-    data: &[u8],
-    output: Option<&std::path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let xur = exui::xur::Xur::parse(data)?;
-    let xml = exui::xui::to_xui(&xur)?;
-    match output {
-        Some(path) => {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::write(path, &xml)?;
-
-            // Generate per-class extension files in extensions/ sibling dir
-            let mut custom = std::collections::BTreeMap::new();
-            exui::xui::collect_custom_classes_from_xur(&xur, &mut custom);
-            if !custom.is_empty() {
-                let ext_dir = path
-                    .parent()
-                    .unwrap_or(std::path::Path::new("."))
-                    .join("extensions");
-                std::fs::create_dir_all(&ext_dir)?;
-                for class_name in custom.keys() {
-                    let ext_path = ext_dir.join(format!("{class_name}.xml"));
-                    if !ext_path.exists() {
-                        let xml = exui::xui::generate_single_class_extension(class_name);
-                        std::fs::write(&ext_path, &xml)?;
-                        eprintln!("class extension -> {}", ext_path.display());
-                    }
-                }
-            }
-        }
-        None => {
-            print!("{xml}");
-            // Also print extensions to stderr if custom classes exist
-            let mut custom = std::collections::BTreeMap::new();
-            exui::xui::collect_custom_classes_from_xur(&xur, &mut custom);
-            for class_name in custom.keys() {
-                eprintln!("--- Class Extension: {class_name} ---");
-                eprint!("{}", exui::xui::generate_single_class_extension(class_name));
-            }
-        }
-    }
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// extract
-// ---------------------------------------------------------------------------
-
-fn cmd_extract(
-    input: &std::path::Path,
-    output: Option<&std::path::Path>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive::ReadAt;
-    use exui::xur::archive::{
-        self,
-    };
-
-    let file = std::fs::File::open(input)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file)? };
-
-    if !archive::is_xuiz(&mmap) {
-        return Err("input is not a XUIZ archive".into());
-    }
-
-    let archive = archive::XuizArchive::parse(&mmap)?;
-    let out_dir = match output {
-        Some(p) => p.to_path_buf(),
-        None => default_output_dir(input),
-    };
-
-    std::fs::create_dir_all(&out_dir)?;
-
-    for entry in &archive.entries {
-        let data = mmap.as_ref().read_at(entry.range.clone())?;
-        // Normalize Windows backslash paths to platform separator
-        let normalized = entry.name.replace('\\', std::path::MAIN_SEPARATOR_STR);
-        let out_path = out_dir.join(&normalized);
+        let out_path = out_dir.join(normalized.replace(".xur", ".xui"));
         if let Some(parent) = out_path.parent() {
-            std::fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent)?;
         }
-        std::fs::write(&out_path, data)?;
-        eprintln!("{} ({} bytes)", entry.name, entry.size());
+        fs::write(&out_path, Xml(&scene).to_string())?;
+        eprintln!("{} -> {}", entry.name, out_path.display());
+        collect_custom_classes(&scene, &mut custom);
     }
 
-    eprintln!(
-        "extracted {} files to {}",
-        archive.entries.len(),
-        out_dir.display()
-    );
+    let extension_dir = out_dir.parent().unwrap_or(out_dir).join("extensions");
+    write_extensions(&extension_dir, &custom)?;
+
+    if failures > 0 {
+        return Err(format!("{failures} of {scene_count} XUR files failed to decompile").into());
+    }
+
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// list
-// ---------------------------------------------------------------------------
+fn decompile_single(data: &[u8], registry: &Registry, output: Option<&Path>) -> CliResult {
+    let scene = Scene::parse(data, registry)?;
+    let xml = Xml(&scene).to_string();
 
-fn cmd_list(input: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    use exui::xur::archive;
+    let mut custom = CustomClasses::new();
+    collect_custom_classes(&scene, &mut custom);
 
-    let file = std::fs::File::open(input)?;
-    let mmap = unsafe { memmap2::Mmap::map(&file)? };
+    let Some(path) = output else {
+        print!("{xml}");
+        for def in custom.values() {
+            eprintln!("--- Class Extension: {} ---", def.name);
+            eprint!("{}", ClassExtension(def));
+        }
+        return Ok(());
+    };
 
-    if !archive::is_xuiz(&mmap) {
-        return Err("input is not a XUIZ archive".into());
+    let parent = path.parent().unwrap_or(Path::new("."));
+    fs::create_dir_all(parent)?;
+    fs::write(path, xml)?;
+
+    write_extensions(&parent.join("extensions"), &custom)
+}
+
+fn cmd_extract(input: &Path, output: Option<&Path>) -> CliResult {
+    let data = map_file(input)?;
+    let entries = Archive::parse(&data)?.entries()?;
+    let out_dir = output.map_or_else(|| default_output_dir(input), Path::to_path_buf);
+    fs::create_dir_all(&out_dir)?;
+
+    for entry in &entries {
+        let out_path = out_dir.join(entry.name.replace('\\', MAIN_SEPARATOR_STR));
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&out_path, entry.data)?;
+        eprintln!("{} ({} bytes)", entry.name, entry.data.len());
     }
 
-    let archive = archive::XuizArchive::parse(&mmap)?;
-    println!(
-        "XUIZ v{} ({} entries)",
-        archive.version,
-        archive.entries.len()
-    );
-    for entry in &archive.entries {
-        println!("  {:>8}  {}", entry.size(), entry.name);
-    }
+    eprintln!("extracted {} files to {}", entries.len(), out_dir.display());
+
     Ok(())
+}
+
+fn cmd_list(input: &Path) -> CliResult {
+    let data = map_file(input)?;
+    let archive = Archive::parse(&data)?;
+    let entries = archive.entries()?;
+
+    println!("XUIZ v{} ({} entries)", archive.version(), entries.len());
+    for entry in &entries {
+        println!("  {:>8}  {}", entry.data.len(), entry.name);
+    }
+
+    Ok(())
+}
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+    let result = match cli.command {
+        Command::Decompile { input, output } => cmd_decompile(&input, output.as_deref()),
+        Command::Extract { input, output } => cmd_extract(&input, output.as_deref()),
+        Command::List { input } => cmd_list(&input),
+    };
+
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("error: {err}");
+            ExitCode::FAILURE
+        }
+    }
 }

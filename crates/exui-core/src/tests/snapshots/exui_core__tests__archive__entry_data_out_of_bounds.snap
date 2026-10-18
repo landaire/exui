@@ -1,0 +1,26 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: results
+---
+[
+    Err(
+        EntryOutOfBounds {
+            offset: EntryOffset(
+                0,
+            ),
+            size: EntrySize(
+                4,
+            ),
+        },
+    ),
+    Err(
+        EntryOutOfBounds {
+            offset: EntryOffset(
+                4294967295,
+            ),
+            size: EntrySize(
+                1,
+            ),
+        },
+    ),
+]

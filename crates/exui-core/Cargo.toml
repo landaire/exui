@@ -1,0 +1,12 @@
+[package]
+name = "exui-core"
+version.workspace = true
+edition.workspace = true
+description = "XUIZ archive and XUR scene reader"
+
+[dependencies]
+thiserror = { workspace = true }
+winnow = { workspace = true, features = ["binary"] }
+
+[dev-dependencies]
+insta = { workspace = true }

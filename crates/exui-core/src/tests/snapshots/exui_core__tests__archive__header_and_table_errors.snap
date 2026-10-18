@@ -1,0 +1,58 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: errors
+---
+[
+    Some(
+        BadMagic {
+            found: [
+                88,
+                85,
+                73,
+                66,
+            ],
+        },
+    ),
+    Some(
+        UnsupportedVersion {
+            version: 2,
+        },
+    ),
+    Some(
+        FileSizeMismatch {
+            header: 173,
+            actual: 174,
+        },
+    ),
+    Some(
+        Truncated {
+            offset: 0,
+            needed: 22,
+        },
+    ),
+    Some(
+        EntryTableOverrun {
+            offset: 22,
+        },
+    ),
+    Some(
+        EntryTableOverrun {
+            offset: 22,
+        },
+    ),
+    Some(
+        TrailerOutOfBounds {
+            offset: EntryOffset(
+                0,
+            ),
+            size: EntrySize(
+                3,
+            ),
+        },
+    ),
+    Some(
+        EntryTableOverrun {
+            offset: 22,
+        },
+    ),
+]

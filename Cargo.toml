@@ -1,23 +1,33 @@
-[package]
-name = "exui"
+[workspace]
+resolver = "3"
+members = [".", "crates/exui-core"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+
+[workspace.dependencies]
+exui-core = { path = "crates/exui-core" }
+insta = "1"
+thiserror = { version = "2", default-features = false }
+winnow = { version = "1", default-features = false }
+
+[package]
+name = "exui"
+version.workspace = true
+edition.workspace = true
 
 [[bin]]
 name = "exui"
 path = "src/main.rs"
 
 [dependencies]
-byteorder = "1"
 clap = { version = "4", features = ["derive"] }
+exui-core = { workspace = true }
 memmap2 = "0.9"
-rootcause = "0.12"
-quick-xml = { version = "0.37", features = ["serialize"] }
-bitflags = "2.11.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+quick-xml = "0.37"
+thiserror = { workspace = true }
 
 [dev-dependencies]
-insta = "1"
+insta = { workspace = true }
 pretty_assertions = "1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }

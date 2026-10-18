@@ -1,6 +1,6 @@
 ---
 source: tests/decompile.rs
-expression: debug_tree(&xur)
+expression: "debug_tree(&parse_file(\"test-data/samples/tabbed_scene.xur\"))"
 ---
 XuiCanvas
   [1] float=640
@@ -21,7 +21,7 @@ XuiCanvas
       [1] float=640
       [2] float=480
       [2] bool=true
-      [3] custom=CUST[0]
+      [3] points=4
     XuiText
       [0] str="HelpText"
       [1] float=122
@@ -301,7 +301,7 @@ XuiCanvas
           [7] uint=5
           [9] bool=false
           [1] str="XuiButton"
-          [4] float=0.00000000000000000000000000000000000000000004
+          [4] vec=(0,10,0)
       XuiButton
         [0] str="NameVKbdButton"
         [1] float=180

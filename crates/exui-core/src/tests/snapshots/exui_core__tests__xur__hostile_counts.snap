@@ -1,0 +1,60 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "[parse(&children), parse(&elements), parse(&frames), parse(&timelines),\nparse(&paths), parse(&keyframes),]"
+---
+[
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 71,
+            needed: 2,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 89,
+            needed: 4,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 94,
+            needed: 9,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 111,
+            needed: 2,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 110,
+            needed: 1,
+        },
+    ),
+    Err(
+        Truncated {
+            region: Section(
+                SectionTag(DATA),
+            ),
+            offset: 154,
+            needed: 4,
+        },
+    ),
+]

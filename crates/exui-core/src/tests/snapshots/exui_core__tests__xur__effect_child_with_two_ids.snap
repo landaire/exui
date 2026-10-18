@@ -1,0 +1,28 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "std::format!(\"{}effect Id: {effect_id:?}\\n\", dump(&doc, &registry))"
+---
+allocation_hints: None
+strings: ["XuiCanvas", "XuiEdgeEffect", "a", "b"]
+vectors: 0
+quaternions: 0
+custom: []
+object ObjectId(0): XuiCanvas parent None
+  children: [ObjectId(1), ObjectId(2)]
+  timeline Some("b") target Some(ObjectId(1))
+    path ["Opacity"] level Some((Some("XuiElement"), LevelsUp(2), PropIndex(6))) element None has_value true
+    keyframe FrameTime(0) Interpolation(0) EaseIn(0) EaseOut(0) EaseScale(0)
+      Float(0.5)
+  timeline Some("a") target Some(ObjectId(1))
+    path ["Opacity"] level Some((Some("XuiElement"), LevelsUp(2), PropIndex(6))) element None has_value true
+    keyframe FrameTime(0) Interpolation(0) EaseIn(0) EaseOut(0) EaseScale(0)
+      Float(0.5)
+object ObjectId(1): XuiEdgeEffect parent Some(ObjectId(0))
+  Id:
+    - String(Some("a"))
+  Id:
+    - String(Some("b"))
+object ObjectId(2): XuiCanvas parent Some(ObjectId(0))
+  Id:
+    - String(Some("b"))
+effect Id: Some("b")

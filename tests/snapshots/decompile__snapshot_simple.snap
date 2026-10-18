@@ -1,6 +1,6 @@
 ---
 source: tests/decompile.rs
-expression: debug_tree(&xur)
+expression: "debug_tree(&parse_file(\"test-data/simple.xur\"))"
 ---
 XuiCanvas
   [1] float=640
@@ -11,9 +11,9 @@ XuiCanvas
     [2] float=25
     [3] vec=(71,32,0)
     [0] compound={color=0xff0f0f80}
-    [1] compound={compound={uint=1, color=0x00000000, float=0}, uint=1}
+    [1] compound={compound={int=1, color=0x00000000, float=0}, uint=1}
     [2] bool=true
-    [3] custom=CUST[0]
+    [3] points=4
   XuiFigure
     [1] float=0
     [2] float=1
@@ -21,7 +21,7 @@ XuiCanvas
     [0] compound={color=0xff0f0f80}
     [1] compound={uint=1}
     [2] bool=true
-    [3] custom=CUST[112]
+    [3] points=4
   XuiButton
     [0] str="XuiButton1"
     [1] float=215

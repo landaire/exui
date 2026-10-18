@@ -1,0 +1,10 @@
+---
+source: crates/exui-core/src/tests/xur.rs
+expression: "dump(&doc, &registry)"
+---
+allocation_hints: None
+strings: ["XuiCanvas"]
+vectors: 0
+quaternions: 0
+custom: []
+object ObjectId(0): XuiCanvas parent None

@@ -409,7 +409,7 @@ Gnome
 <Anchor>5</Anchor>
 <Show>false</Show>
 <Visual>XuiButton</Visual>
-<Unknown>0.000000</Unknown>
+<InterItemSpacing>0.000000,10.000000,0.000000</InterItemSpacing>
 </Properties>
 </XuiListItem>
 </XuiCommonList>
