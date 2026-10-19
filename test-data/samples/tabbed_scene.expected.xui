@@ -292,9 +292,9 @@
 <NavLeft>SpellsList</NavLeft>
 <NavRight>SpellsList</NavRight>
 <Text>Items</Text>
-<ItemsText>Gem of Warding
-Ring of INT+1
-Cloak of Flying
+<ItemsText>Gem of Warding&#xD;
+Ring of INT+1&#xD;
+Cloak of Flying&#xD;
 </ItemsText>
 </Properties>
 </XuiCommonList>
@@ -309,11 +309,11 @@ Cloak of Flying
 <NavLeft>ItemsList</NavLeft>
 <NavRight>ItemsList</NavRight>
 <Text>Spells</Text>
-<ItemsText>Detect Magic
-Fire Arrow
-Freeze
-Invisibility
-Summon Imp
+<ItemsText>Detect Magic&#xD;
+Fire Arrow&#xD;
+Freeze&#xD;
+Invisibility&#xD;
+Summon Imp&#xD;
 </ItemsText>
 </Properties>
 </XuiCommonList>
@@ -340,11 +340,11 @@ Summon Imp
 <NavLeft>ArmorList</NavLeft>
 <NavRight>ArmorList</NavRight>
 <Text>Weapons</Text>
-<ItemsText>Dagger
-Sword
-Crossbow
-Bow
-Mace
+<ItemsText>Dagger&#xD;
+Sword&#xD;
+Crossbow&#xD;
+Bow&#xD;
+Mace&#xD;
 </ItemsText>
 </Properties>
 </XuiCommonList>
@@ -359,11 +359,11 @@ Mace
 <NavLeft>WeaponsList</NavLeft>
 <NavRight>WeaponsList</NavRight>
 <Text>Armor</Text>
-<ItemsText>Helmet
-Plate mail
-Chain mail
-Shield
-Boots
+<ItemsText>Helmet&#xD;
+Plate mail&#xD;
+Chain mail&#xD;
+Shield&#xD;
+Boots&#xD;
 </ItemsText>
 </Properties>
 </XuiCommonList>
@@ -391,13 +391,13 @@ Boots
 <NavUp>RaceList</NavUp>
 <NavDown>RaceList</NavDown>
 <Text>Race</Text>
-<ItemsText>Half-Giant
-Human
-Half-Elf
-Elf
-Dwarf
-Halfling
-Gnome
+<ItemsText>Half-Giant&#xD;
+Human&#xD;
+Half-Elf&#xD;
+Elf&#xD;
+Dwarf&#xD;
+Halfling&#xD;
+Gnome&#xD;
 </ItemsText>
 </Properties>
 <XuiListItem>

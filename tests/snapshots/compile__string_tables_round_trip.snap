@@ -1,0 +1,17 @@
+---
+source: tests/compile.rs
+expression: out
+---
+<XuiStringTable keys="index">
+<String>first</String>
+<String></String>
+<String> two&#xD;
+lines </String>
+</XuiStringTable>
+<XuiStringTable keys="id">
+<String id="7">&lt;seven&gt; &amp; "more"</String>
+<String id="4294967295">last	</String>
+</XuiStringTable>
+<XuiStringTable keys="name">
+<String name="key &quot;one&quot;&#xD;&#xA;&#x9;">value</String>
+</XuiStringTable>

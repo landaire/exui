@@ -13,7 +13,6 @@ use exui_core::schema::xui;
 use exui_core::value::Color;
 use exui_core::value::Quaternion;
 use exui_core::value::Vector3;
-use exui_core::wide::WideStr;
 use exui_core::xur;
 use exui_core::xur::CustomOffset;
 use exui_core::xur::EaseIn;
@@ -42,6 +41,9 @@ pub struct ElementId(pub usize);
 #[derive(Clone, Debug)]
 pub struct Scene {
     pub schema: SchemaVersion,
+    /// Whether the file carries allocation hints after its header. Only
+    /// version 5 files record this.
+    pub allocation_hints: bool,
     /// Elements in file order, parents before children; the root is first.
     pub elements: Vec<Element>,
 }
@@ -76,12 +78,15 @@ impl Scene {
             let named_frames = object
                 .named_frames()
                 .iter()
-                .map(|frame| NamedFrame {
-                    name: document_string(document, frame.name),
-                    time: frame.time,
-                    command: frame.command,
+                .map(|frame| {
+                    Ok(NamedFrame {
+                        name: document_string(document, frame.name)?,
+                        time: frame.time,
+                        command: frame.command,
+                        target: document_string(document, frame.target)?,
+                    })
                 })
-                .collect();
+                .collect::<Result<_, DecompileError>>()?;
 
             let mut timelines = Vec::new();
             for timeline in object.timelines() {
@@ -102,6 +107,7 @@ impl Scene {
 
         Ok(Self {
             schema: SCHEMA,
+            allocation_hints: document.allocation_hints().is_some(),
             elements,
         })
     }
@@ -160,7 +166,7 @@ impl Property {
 #[derive(Clone, Debug)]
 pub enum Value {
     Scalar(Scalar),
-    Points(Vec<FigurePoint>),
+    Points(FigurePath),
     /// Sub-properties in definition order.
     Compound(Vec<Property>),
 }
@@ -181,11 +187,61 @@ pub enum Scalar {
     Raw(u32),
 }
 
+/// `XuiFigure.Points`: the point list and the size it was drawn at.
+#[derive(Clone, Debug, PartialEq)]
+pub struct FigurePath {
+    pub width: f32,
+    pub height: f32,
+    pub points: Vec<FigurePoint>,
+}
+
+impl FigurePath {
+    /// Blob contents as the binary save handler lays them out.
+    pub fn to_blob(&self) -> Vec<u8> {
+        const POINT_SIZE: usize = 24;
+
+        let mut blob = Vec::with_capacity(12 + POINT_SIZE * self.points.len());
+        blob.extend_from_slice(&self.width.to_be_bytes());
+        blob.extend_from_slice(&self.height.to_be_bytes());
+        blob.extend_from_slice(&(self.points.len() as u32).to_be_bytes());
+        for point in &self.points {
+            for coord in point.coords {
+                blob.extend_from_slice(&coord.to_be_bytes());
+            }
+        }
+
+        blob
+    }
+
+    /// Width and height of the box around the anchor points (the first two
+    /// floats of each point), zero for no points. The XUI tool stored this
+    /// size for every figure of the SDK sample scenes, whose text form does
+    /// not carry one.
+    pub fn anchor_extent(points: &[FigurePoint]) -> (f32, f32) {
+        let Some(first) = points.first() else {
+            return (0.0, 0.0);
+        };
+
+        let [mut min_x, mut min_y] = [first.coords[0], first.coords[1]];
+        let [mut max_x, mut max_y] = [min_x, min_y];
+        for point in points {
+            min_x = min_x.min(point.coords[0]);
+            max_x = max_x.max(point.coords[0]);
+            min_y = min_y.min(point.coords[1]);
+            max_y = max_y.max(point.coords[1]);
+        }
+
+        (max_x - min_x, max_y - min_y)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct NamedFrame {
     pub name: Option<String>,
     pub time: FrameTime,
     pub command: FrameCommand,
+    /// Named frame a jump command goes to.
+    pub target: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -235,25 +291,50 @@ pub(crate) fn custom_value(
         });
     };
 
-    // The original ignores an incomplete point list; the text form has no
-    // way to express that.
-    let points = FigurePoints::parse(blob).and_then(|figure| figure.points);
-    let Some(points) = points else {
+    // The original ignores an incomplete point list and bytes after the
+    // points; the text form has no way to express either.
+    let Some(FigurePoints {
+        width,
+        height,
+        points: Some(points),
+    }) = FigurePoints::parse(blob)
+    else {
         return Err(DecompileError::MalformedFigurePoints { offset });
     };
+    let path = FigurePath {
+        width,
+        height,
+        points,
+    };
+    if path.to_blob().len() != blob.len() {
+        return Err(DecompileError::MalformedFigurePoints { offset });
+    }
 
-    Ok(Value::Points(points))
+    Ok(Value::Points(path))
 }
 
-pub(crate) fn wide_to_string(text: WideStr<'_>) -> String {
-    text.chars()
-        .map(|decoded| decoded.unwrap_or(char::REPLACEMENT_CHARACTER))
-        .collect()
-}
+/// Strings the text form cannot reproduce are errors: an index past the
+/// table (the original reads it as the null string, which text would
+/// compile to index 0), an empty string (empty text is the null string)
+/// and unpaired surrogates.
+fn document_string(
+    document: &Document<'_>,
+    id: Option<StringId>,
+) -> Result<Option<String>, DecompileError> {
+    let Some(id) = id else {
+        return Ok(None);
+    };
+    let Some(text) = document.string(id) else {
+        return Err(DecompileError::InvalidStringIndex { index: id.get() });
+    };
+    if text.is_empty() {
+        return Err(DecompileError::EmptyString { index: id.get() });
+    }
 
-/// An index past the table reads as the null string, as in the original.
-fn document_string(document: &Document<'_>, id: Option<StringId>) -> Option<String> {
-    id.and_then(|id| document.string(id)).map(wide_to_string)
+    match String::from_utf16(&text.units().collect::<Vec<u16>>()) {
+        Ok(text) => Ok(Some(text)),
+        Err(_) => Err(DecompileError::InvalidUtf16 { index: id.get() }),
+    }
 }
 
 /// Compound nesting is bounded by the static definition tables, so the
@@ -290,7 +371,7 @@ fn convert_value(
         xur::Value::Integer(value) => Scalar::Integer(value),
         xur::Value::Unsigned(value) => Scalar::Unsigned(value),
         xur::Value::Float(value) => Scalar::Float(value),
-        xur::Value::String(id) => Scalar::String(document_string(document, id)),
+        xur::Value::String(id) => Scalar::String(document_string(document, id)?),
         xur::Value::Color(value) => Scalar::Color(value),
         xur::Value::Vector(index) => {
             let Some(vector) = document.vector(index) else {
@@ -338,39 +419,43 @@ fn convert_timeline(
         });
     }
 
-    let keyframes = document
-        .keyframes(timeline)
-        .iter()
-        .map(|keyframe| Keyframe {
+    let mut keyframes = Vec::new();
+    for keyframe in document.keyframes(timeline) {
+        let mut values = Vec::new();
+        for value in document.keyframe_values(keyframe) {
+            values.push(convert_keyframe_value(document, value)?);
+        }
+        keyframes.push(Keyframe {
             time: keyframe.time,
             interpolation: keyframe.interpolation,
             ease_in: keyframe.ease_in,
             ease_out: keyframe.ease_out,
             ease_scale: keyframe.ease_scale,
-            values: document
-                .keyframe_values(keyframe)
-                .iter()
-                .map(|value| convert_keyframe_value(document, value))
-                .collect(),
-        })
-        .collect();
+            values,
+        });
+    }
 
     Ok(Timeline {
-        element: document_string(document, timeline.element),
+        element: document_string(document, timeline.element)?,
         properties,
         keyframes,
     })
 }
 
-fn convert_keyframe_value(document: &Document<'_>, value: &KeyframeValue) -> Scalar {
-    match *value {
+fn convert_keyframe_value(
+    document: &Document<'_>,
+    value: &KeyframeValue,
+) -> Result<Scalar, DecompileError> {
+    let scalar = match *value {
         KeyframeValue::Bool(value) => Scalar::Bool(value),
         KeyframeValue::Integer(value) => Scalar::Integer(value),
         KeyframeValue::Unsigned(value) => Scalar::Unsigned(value),
         KeyframeValue::Float(value) => Scalar::Float(value),
-        KeyframeValue::String(id) => Scalar::String(document_string(document, id)),
+        KeyframeValue::String(id) => Scalar::String(document_string(document, id)?),
         KeyframeValue::Color(value) => Scalar::Color(value),
         KeyframeValue::Vector(value) => Scalar::Vector(value),
         KeyframeValue::Quaternion(value) => Scalar::Quaternion(value),
-    }
+    };
+
+    Ok(scalar)
 }

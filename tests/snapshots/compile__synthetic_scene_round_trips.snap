@@ -1,0 +1,41 @@
+---
+source: tests/compile.rs
+expression: "describe(&compiled.tree.root, &registry)"
+---
+XuiCanvas
+  Width = Float(640.0)
+  Height = Float(480.0)
+  frame Some("Start") at 0 command 0 target None
+  frame Some("Hold") at 10 command 1 target None
+  frame Some("Jump") at 20 command 2 target Some("Start")
+  frame Some("Loop") at 30 command 3 target Some("Start")
+  frame Some("End") at 40 command 4 target Some("Hold")
+  frame None at 50 command 7 target Some("End")
+  timeline Some("Shape")
+    path Some("up 1 index 6 Opacity") element None
+    path Some("up 0 index 1 Fill.FillColor") element None
+    path Some("up 0 index 1 Fill.Gradient.StopColor") element Some(1)
+    path Some("up 0 index 2 Closed") element None
+    key 0 interpolation 0 ease 0 0 50 [Float(1.0), Color(Color(4278190080)), Color(Color(2155905152)), Bool(true)]
+    key 15 interpolation 1 ease 0 0 30 [Float(0.5), Color(Color(4278255360)), Color(Color(0)), Bool(false)]
+    key 40 interpolation 2 ease 10 20 50 [Float(0.0), Color(Color(4294901760)), Color(Color(4294967295)), Bool(true)]
+  timeline Some("Inner Id")
+  XuiFigure
+    Id = String(Some("Shape"))
+    Width = Float(70.0)
+    Height = Float(25.5)
+    Position = Vector(Vector3 { x: 1.0, y: -2.0, z: 0.0 })
+    Rotation = Quaternion(Quaternion { x: 0.0, y: 0.0, z: 0.707107, w: 0.707107 })
+    Opacity = Float(1e-7)
+    Anchor = Unsigned(4294967295)
+    Show = Bool(false)
+    Fill = {FillColor = Color(Color(4279246896)), TextureFileName = String(Some("a b  \u{000D}\u{000A}c<&>\u{0009} ")), Gradient = {NumStops = Integer(-2), StopColor = Color(Color(0)) | Color(Color(4294967295)), StopPos = Float(0.0) | Float(1.0)}}
+    Closed = Bool(true)
+    Points = blob [42, 8c, 00, 00, 41, cc, 00, 00, 00, 00, 00, 02, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 42, 8c, 00, 00, 00, 00, 00, 00, 42, 8c, 00, 00, 41, cc, 00, 00, 42, 8c, 00, 00, 41, cc, 00, 00, 00, 00, 00, 00, 41, cc, 00, 00]
+  XuiFigure
+    Id = String(Some("Line"))
+    Stroke = {}
+    Points = blob [41, 20, 00, 00, 41, a0, 00, 00, 00, 00, 00, 01, 3f, 80, 00, 00, 40, 00, 00, 00, 40, 40, 00, 00, 40, 80, 00, 00, 40, a0, 00, 00, 40, c0, 00, 00]
+  XuiEffect
+    Id = String(Some("Outer"))
+    Id = String(Some("Inner"))

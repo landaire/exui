@@ -1,0 +1,26 @@
+---
+source: tests/compile.rs
+expression: out
+---
+not XML: line 1: element XuiCanvas is not closed
+no version: line 1: XuiCanvas lacks attribute version
+old version: line 1: XUI version "000b" is not 000c
+bad hints: line 1: attribute allocationhints of XuiCanvas has bad value "1"
+unknown class: line 1: class XuiNothing is not in the registry
+unknown property: line 1: XuiCanvas has no property Size
+repeated property: line 1: property Width is given more often than it is declared
+bad float: line 1: "wide" is not a value of property Width
+bad vector: line 1: "1,2" is not a value of property Position
+bad color: line 1: "red" is not a value of property StrokeColor
+index out of order: line 1: element 2 of StopPos where element 1 comes next
+missing index: line 1: indexed property StopPos lacks an index attribute
+index on a scalar: line 1: property Width is not indexed
+point count: line 1: point list declares 2 points but holds 7 fields
+half a size: line 1: Points lacks attribute height
+unknown command: line 1: unknown named frame command "jump"
+frame without time: line 1: NamedFrame lacks element Time
+unknown timeline target: line 1: no child has the timeline Id "B"
+unknown timeline property: line 1: XuiFigure has no property path Fill.Size
+keyframe value count: line 1: keyframe holds 0 values for 1 animated properties
+unexpected element: line 1: element Frames is not allowed in Timelines
+text in a container: line 1: element XuiCanvas holds text

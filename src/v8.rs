@@ -255,6 +255,7 @@ struct RawNamedFrame {
     name: u32,
     time: FrameTime,
     command: FrameCommand,
+    target: Option<u32>,
 }
 
 #[derive(Clone, Copy)]
@@ -634,6 +635,7 @@ impl<'r> Reader<'r, '_, '_> {
                     name: self.tables.string(frame.name),
                     time: frame.time,
                     command: frame.command,
+                    target: frame.target.and_then(|target| self.tables.string(target)),
                 })
                 .collect()
         } else {
@@ -847,6 +849,7 @@ pub fn parse(data: &[u8], registry: &Registry) -> Result<Scene, V8Error> {
 
     Ok(Scene {
         schema: sections.schema,
+        allocation_hints: false,
         elements: reader.elements,
     })
 }
@@ -878,13 +881,16 @@ fn parse_named_frames(mut cursor: Cursor<'_>) -> Result<Vec<RawNamedFrame>, V8Er
         let name = cursor.varint()?;
         let time = FrameTime(cursor.varint()?);
         let command = FrameCommand(cursor.u8()?);
-        if command.0 >= 2 {
-            let _target = cursor.varint()?;
-        }
+        let target = if command.0 >= 2 {
+            Some(cursor.varint()?)
+        } else {
+            None
+        };
         frames.push(RawNamedFrame {
             name,
             time,
             command,
+            target,
         });
     }
 

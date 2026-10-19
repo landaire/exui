@@ -1,6 +1,10 @@
 pub mod archive;
+pub mod compile;
 pub mod error;
+mod markup;
+pub mod pack;
 pub mod registry;
 pub mod scene;
 pub mod v8;
 pub mod xui;
+pub mod xus;

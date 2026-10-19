@@ -196,3 +196,25 @@ The writer follows the layout of the 6717 files. Rewriting each of their 262 ver
 - Element counts use the shortest form: one byte below 0x80, else 0x81, 0x82 or 0x84 with a u8, u16 or u32.
 - A string holding a NUL unit, a definition given twice, or a timeline with properties whose element no child has as an `Id` (any of its `Id` properties, first child wins, as the loader searches) is rejected.
 - Allocation hints are optional (`WriteOptions`); the 6717 files have them or not depending on the tool version. [INFERENCE] Matched against the ten files that have them: h0 objects, h1 value entries including those inside compounds, h2 property arrays (objects with properties plus compound values), h3 keyframe values, h4 property path definitions, h5 timeline properties, h6 keyframes, h7 timelines, h8 named frames, h9 objects with children.
+
+## XUI text form
+
+`exui decompile` writes scenes as XUI XML in the form the XUI tool uses, and `exui compile` (`exui::compile`) reads it back. Decompiling any of the 262 loadable 6717 scenes and compiling the text gives the original bytes. The rules that make this hold:
+
+- The root element is the root class with `version="000c"`. `allocationhints="true"` records that the file has allocation hints; without it the compiler writes none.
+- `<Properties>` holds one element per stored property, named after its definition. Names resolve through the class levels root first; a name declared at more than one level (the second `Id` of `XuiEffect` classes) maps its occurrences to the declarations in level order. Indexed properties have one element per value with `index="0"`, `index="1"` and so on, in order. Compound values hold a nested `<Properties>`. The compiler orders properties by level and definition.
+- Bool is `true` or `false`, color `0xAARRGGBB`, vector `x,y,z`, quaternion `x,y,z,w`. Floats have six decimals when that text reads back to the same bits, else the shortest exact form. Values other than strings may be surrounded by whitespace.
+- Strings are taken exactly as written. Carriage returns and other control characters except line feed and tab are written as character references (`&#xD;`), so CRLF line ends and trailing spaces survive. Empty text is the null string; a scene holding an empty (not null) string, a string index outside its table or an unpaired surrogate has no text form.
+- `XuiFigure.Points` is the point count, then for each point six coordinates and a type, each followed by a comma. The binary form does not store the type and the compiler ignores it. The blob also holds a width and height. The decompiler writes them as `width` and `height` attributes unless they equal the anchor extent (the size of the box around the first two coordinates of each point, zero for no points), which the compiler uses without them. The XUI tool stored the anchor extent for every figure of its SDK samples; the 6717 figures often hold other sizes.
+- `<Timelines>` follows the children. `<NamedFrame>` holds `Name` (left out for a null name), `Time`, `Command` (left out for play; `stop`, `goto`, `gotoandplay`, `gotoandstop` for 1 to 4, a number for other bytes) and `CommandParams`, the target frame name, when stored.
+- `<Timeline>` holds `Id` exactly as stored, then `TimelineProp` paths `Name.Sub` resolved against the class of the first child with that `Id` (first name root first, later names through compounds), with `index` when the stored path has an element index. A `KeyFrame` holds `Time`, `Interpolation`, `EaseIn`, `EaseOut`, `EaseScale` and one `Prop` per path ending in a value. The ease values are written for interpolation 2 and otherwise only when they differ from 0, 0 and 50, the values the XUI tool stores for other interpolations and the compiler assumes when they are left out.
+
+## String table text form
+
+A `.xus` file starts with `XUIS`, a format byte 1, a flags byte, a u32 file size and a u16 entry count. Each entry is a u16 length and big-endian UTF-16 units. Flag 0x2 keys entries by position, flag 0x1 follows each value with a u32 id, and neither follows it with a key string. The 6717 tables use flag 1 or 2.
+
+`exui::xus` writes them as `<XuiStringTable keys="index|id|name">` holding one `<String>` per entry, with `id="N"` (decimal) or `name="..."` for keyed tables. Values follow the string rules of the XUI text form; empty text is an empty string. Tables whose flags are not 0, 1 or 2, whose size field is not the file size, or that have bytes after the entries have no text form. All 3198 6717 tables compile back to their bytes.
+
+## Archive directories
+
+`exui decompile` of an archive writes each entry under its name, with `x.xur` as `x.xui` and `x.xus` as `x.xus.xml`. Entries the text form cannot reproduce are written as they are. `exui pack` (`exui::pack`) maps the files back, compiles the text and writes a version 1 archive. Entries are sorted by name unless an order file lists the names one per line; `--order-file` of `extract` and `decompile` writes one. Repacking each of the 28 6717 archives in its recorded order gives the original bytes.

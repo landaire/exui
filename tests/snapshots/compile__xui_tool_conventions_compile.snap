@@ -1,0 +1,26 @@
+---
+source: tests/compile.rs
+expression: Xml(&scene).to_string()
+---
+<XuiCanvas version="000c">
+<Properties>
+<Width>64.500000</Width>
+</Properties>
+<XuiFigure>
+<Properties>
+<Id>A</Id>
+<Points>1,2.000000,3.000000,4.000000,5.000000,6.000000,7.000000,0,</Points>
+</Properties>
+</XuiFigure>
+<Timelines>
+<Timeline>
+<Id>A</Id>
+<TimelineProp>Width</TimelineProp>
+<KeyFrame>
+<Time>3</Time>
+<Interpolation>1</Interpolation>
+<Prop>2.000000</Prop>
+</KeyFrame>
+</Timeline>
+</Timelines>
+</XuiCanvas>

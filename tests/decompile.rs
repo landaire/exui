@@ -3,6 +3,8 @@ use std::fmt::Write;
 use std::fs;
 
 use exui::archive::Archive;
+use exui::compile::CompiledScene;
+use exui::compile::compile_scene;
 use exui::error::SceneError;
 use exui::registry;
 use exui::scene::ElementId;
@@ -14,6 +16,7 @@ use exui::xui::Xml;
 use exui::xui::to_xui;
 use exui_core::Document;
 use exui_core::XurError;
+use exui_core::tree::Tree;
 
 fn parse_file(path: &str) -> Scene {
     let data = fs::read(path).expect("failed to read file");
@@ -74,7 +77,7 @@ fn debug_tree(scene: &Scene) -> String {
 fn format_value(value: &Value) -> String {
     match value {
         Value::Scalar(scalar) => format_scalar(scalar),
-        Value::Points(points) => format!("points={}", points.len()),
+        Value::Points(path) => format!("points={}", path.points.len()),
         Value::Compound(properties) => {
             let parts: Vec<String> = properties
                 .iter()
@@ -141,17 +144,21 @@ fn roundtrip_simple() {
     pretty_assertions::assert_eq!(decompiled, reference);
 }
 
+// The XUI tool's controls_demo1 and xuieffect_main files hold strings with
+// CRLF line ends and trailing spaces as plain text; the decompiler writes
+// CR as `&#xD;` and keeps trailing spaces so the text compiles back to the
+// same strings. These compare against .expected.xui files holding that form.
 #[test]
 fn roundtrip_controls_demo1() {
     let decompiled = decompile_file("test-data/samples/controls_demo1.xur");
-    let reference = read_reference("test-data/samples/controls_demo1.xui");
+    let reference = read_reference("test-data/samples/controls_demo1.expected.xui");
     pretty_assertions::assert_eq!(decompiled, reference);
 }
 
 #[test]
 fn roundtrip_xuieffect_main() {
     let decompiled = decompile_file("test-data/samples/xuieffect_main.xur");
-    let reference = read_reference("test-data/samples/xuieffect_main.xui");
+    let reference = read_reference("test-data/samples/xuieffect_main.expected.xui");
     pretty_assertions::assert_eq!(decompiled, reference);
 }
 
@@ -170,6 +177,44 @@ fn roundtrip_tabbed_scene() {
     let decompiled = decompile_file("test-data/samples/tabbed_scene.xur");
     let reference = read_reference("test-data/samples/tabbed_scene.expected.xui");
     pretty_assertions::assert_eq!(decompiled, reference);
+}
+
+/// Decompiled sample scenes compile back to the same tree, and those
+/// written in the 6717 layout to their bytes. The sceneviewer and
+/// tabbed_scene samples come from XUI tools whose layout the exui-core
+/// writer does not follow.
+#[test]
+fn samples_recompile() {
+    let registry = registry::dash_6717().expect("registry builds");
+    for (path, same_layout) in [
+        ("test-data/simple.xur", true),
+        ("test-data/samples/controls_demo1.xur", true),
+        ("test-data/samples/PauseMenu.xur", true),
+        ("test-data/samples/sceneviewer_skin_default.xur", false),
+        ("test-data/samples/tabbed_scene.xur", false),
+        ("test-data/samples/xuieffect_main.xur", true),
+    ] {
+        let data = fs::read(path).expect("read");
+        let document = Document::parse(&data, &registry).expect("parses");
+        let expected = Tree::from_document(&document, &registry).expect("converts");
+
+        let compiled = CompiledScene::parse(&decompile_file(path), &registry)
+            .expect("decompiled text compiles");
+        assert!(compiled.tree == expected, "{path} compiles to another tree");
+
+        let bytes = compiled.to_xur(&registry).expect("writes");
+        assert_eq!(bytes == data, same_layout, "{path}");
+    }
+}
+
+/// The XUI tool's own text of the simple scene compiles to its XUR.
+#[test]
+fn xui_tool_text_compiles_byte_for_byte() {
+    let registry = registry::dash_6717().expect("registry builds");
+    let text = read_reference("test-data/simple.xui");
+    let compiled = compile_scene(&text, &registry).expect("compiles");
+
+    assert!(compiled == fs::read("test-data/simple.xur").expect("read"));
 }
 
 #[test]

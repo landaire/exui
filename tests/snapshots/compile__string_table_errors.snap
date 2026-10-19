@@ -1,0 +1,11 @@
+---
+source: tests/compile.rs
+expression: out
+---
+flags: string table flags 0x03 select no single key kind
+size: string table header size 53 does not match data size 52
+trailing: string table has 1 bytes after its entries
+no keys: line 1: XuiStringTable lacks attribute keys
+bad keys: line 1: attribute keys of XuiStringTable has bad value "hash"
+bad id: line 1: attribute id of String has bad value "x"
+missing name: line 1: String lacks attribute name
