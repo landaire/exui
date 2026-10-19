@@ -107,10 +107,15 @@ impl Object {
         self.properties.iter_mut().find(|property| property.is(def))
     }
 
-    /// The string of the first `Id` property, as the timeline loader
-    /// matches children.
+    /// The string of the first `Id` property that holds one.
     pub fn id(&self) -> Option<&WideString> {
-        self.properties.iter().find_map(|property| {
+        self.ids().next()
+    }
+
+    /// Strings of every `Id` property, as the timeline loader compares
+    /// them: an `XuiEffect` has two.
+    pub fn ids(&self) -> impl Iterator<Item = &WideString> {
+        self.properties.iter().filter_map(|property| {
             if property.def.name != "Id" {
                 return None;
             }
@@ -121,17 +126,29 @@ impl Object {
         })
     }
 
-    /// The first child whose `Id` is `id`.
-    pub fn child_by_id(&self, id: &str) -> Option<&Object> {
-        self.children
-            .iter()
-            .find(|child| child.id().is_some_and(|text| text.eq_str(id)))
+    pub fn has_id(&self, id: &[u16]) -> bool {
+        self.ids().any(|text| text.units() == id)
     }
 
-    pub fn child_by_id_mut(&mut self, id: &str) -> Option<&mut Object> {
-        self.children
-            .iter_mut()
-            .find(|child| child.id().is_some_and(|text| text.eq_str(id)))
+    /// The first child with an `Id` of `id`, the child a timeline for `id`
+    /// animates.
+    pub fn child_by_id(&self, id: &[u16]) -> Option<&Object> {
+        self.children.iter().find(|child| child.has_id(id))
+    }
+
+    pub fn child_by_id_mut(&mut self, id: &[u16]) -> Option<&mut Object> {
+        self.children.iter_mut().find(|child| child.has_id(id))
+    }
+}
+
+/// Drops descendants with a worklist, so deep trees do not exhaust the
+/// stack.
+impl Drop for Object {
+    fn drop(&mut self) {
+        let mut pending = core::mem::take(&mut self.children);
+        while let Some(mut child) = pending.pop() {
+            pending.append(&mut child.children);
+        }
     }
 }
 

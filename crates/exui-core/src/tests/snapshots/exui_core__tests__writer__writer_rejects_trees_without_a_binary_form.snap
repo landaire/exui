@@ -19,9 +19,20 @@ expression: errors
     },
     TimelineTargetNotFound {
         class: "XuiCanvas",
+        element: Some(
+            "Missing",
+        ),
     },
     ValueCount {
         property: "Flag",
         count: 2,
+    },
+    DuplicateProperty {
+        property: "Flag",
+    },
+    StringHoldsNul {
+        owner: Property(
+            "Label",
+        ),
     },
 ]

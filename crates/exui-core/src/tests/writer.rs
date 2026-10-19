@@ -310,6 +310,27 @@ fn writer_rejects_trees_without_a_binary_form() {
         WriteOptions::default(),
     ));
 
+    let mut duplicate = gauge(&registry);
+    duplicate
+        .properties
+        .push(Property::new(def(&GAUGE_PROPS, "Flag"), Value::Bool(false)));
+    errors.push(write(
+        &Tree { root: duplicate },
+        &registry,
+        WriteOptions::default(),
+    ));
+
+    let mut nul = gauge(&registry);
+    nul.properties[5] = Property::new(
+        def(&GAUGE_PROPS, "Label"),
+        Value::String(Some(WideString::new(vec![0x61, 0, 0x62]))),
+    );
+    errors.push(write(
+        &Tree { root: nul },
+        &registry,
+        WriteOptions::default(),
+    ));
+
     let errors: Vec<WriteError> = errors
         .into_iter()
         .map(|result| result.expect_err("tree is rejected"))
@@ -380,5 +401,58 @@ fn archive_writer_rejects_unreachable_names() {
             ArchiveWriteError::InvalidName { index: 0 },
             ArchiveWriteError::NameTooLong { index: 0 },
         ]
+    );
+}
+
+/// The reader matches a timeline against every `Id` of each child, so an
+/// effect is found by its second `Id` and the first matching child wins.
+#[test]
+fn timelines_find_children_by_any_id() {
+    let registry = registry();
+    let effect_id = xui::XUI_EFFECT
+        .props
+        .iter()
+        .find(|def| def.name == "Id")
+        .expect("XuiEffect declares Id");
+    let mut effect = Object::new(registry.find("XuiEffect").expect("built in"));
+    effect.properties = vec![
+        Property::new(def(xui::XUI_ELEMENT.props, "Id"), text("Element")),
+        Property::new(effect_id, text("Effect")),
+    ];
+    let mut later = gauge(&registry);
+    later.properties[0] = Property::new(def(xui::XUI_ELEMENT.props, "Id"), text("Effect"));
+
+    let width = def(xui::XUI_ELEMENT.props, "Width");
+    let width_index = xui::XUI_ELEMENT
+        .props
+        .iter()
+        .position(|candidate| core::ptr::eq(candidate, width))
+        .unwrap();
+    let mut root = Object::new(registry.find("XuiCanvas").expect("built in"));
+    root.children = vec![effect, later];
+    root.timelines = vec![Timeline {
+        element: Some(WideString::from("Effect")),
+        properties: vec![TimelineProperty {
+            path: Some(PropertyPath {
+                levels_up: LevelsUp(1),
+                index: PropIndex(width_index as u8),
+                defs: vec![width],
+            }),
+            element: None,
+        }],
+        keyframes: vec![],
+    }];
+    let tree = Tree { root };
+
+    let bytes = write(&tree, &registry, WriteOptions::default()).expect("tree writes");
+    let document = Document::parse(&bytes, &registry).expect("written scene parses");
+    let timeline = document.root().timelines()[0];
+    assert_eq!(
+        timeline.target,
+        document.root().children().next().map(|child| child.id())
+    );
+    assert_eq!(
+        Tree::from_document(&document, &registry).expect("document converts"),
+        tree
     );
 }

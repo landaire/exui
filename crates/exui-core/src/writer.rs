@@ -2,10 +2,14 @@
 //! [`crate::xur`] accepts, following the conventions of the 6717 files (see
 //! doc/xui-format.md, "Writer").
 
+use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
+use core::borrow::Borrow;
 
+use crate::error::StringOwner;
 use crate::error::WriteError;
+use crate::schema::ClassId;
 use crate::schema::ClassRef;
 use crate::schema::PropDef;
 use crate::schema::PropKind;
@@ -24,45 +28,12 @@ use crate::xur::HeaderFlags;
 use crate::xur::ObjectFlags;
 use crate::xur::SectionTag;
 
-const MAGIC: &[u8; 4] = b"XUIB";
-const VERSION: u32 = 5;
-const SCHEMA: u16 = 0xC;
-const HEADER_SIZE: usize = 0x14;
-const SECTION_ENTRY_SIZE: usize = 12;
-/// Definitions at mask bit 32 or later can never be loaded.
-const MASK_BITS: usize = 32;
-/// String lengths with bit 15 set do not load consistently.
-const MAX_STRING_UNITS: usize = 0x7FFF;
-
 /// Layout choices that do not change what the loader reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WriteOptions {
     /// Writes the ten allocation hint words after the header. The 6717
     /// files have them or not depending on the tool that wrote them.
     pub allocation_hints: bool,
-}
-
-/// Serializes `tree`. `registry` must hold every class of the tree, with
-/// the definitions its properties refer to.
-pub fn write(
-    tree: &Tree,
-    registry: &Registry,
-    options: WriteOptions,
-) -> Result<Vec<u8>, WriteError> {
-    let mut writer = Writer {
-        options,
-        registry,
-        strings: Interner::default(),
-        vectors: Interner::default(),
-        quaternions: Interner::default(),
-        custom: Vec::new(),
-        blobs: BTreeMap::new(),
-        data: Vec::new(),
-        counts: Counts::default(),
-    };
-    writer.object(&tree.root)?;
-
-    writer.finish()
 }
 
 /// Tallies of what the loader allocates, written as the allocation hints.
@@ -100,71 +71,99 @@ impl Counts {
     }
 }
 
-/// First-use ordered table with deduplication.
-struct Interner<K: Ord + Clone> {
-    order: Vec<K>,
+/// First-use ordered table with deduplication: each key maps to its
+/// zero-based position.
+struct Interner<K> {
     index: BTreeMap<K, u32>,
 }
 
-impl<K: Ord + Clone> Default for Interner<K> {
-    fn default() -> Self {
+impl<K: Ord> Interner<K> {
+    fn new() -> Self {
         Self {
-            order: Vec::new(),
             index: BTreeMap::new(),
         }
     }
-}
 
-impl<K: Ord + Clone> Interner<K> {
-    /// Zero-based position of `key`.
-    fn intern(&mut self, key: &K) -> u32 {
+    fn intern<Q>(&mut self, key: &Q) -> u32
+    where
+        Q: Ord + ToOwned<Owned = K> + ?Sized,
+        K: Borrow<Q>,
+    {
         if let Some(&index) = self.index.get(key) {
             return index;
         }
-        let index = self.order.len() as u32;
-        self.order.push(key.clone());
-        self.index.insert(key.clone(), index);
+
+        let index = self.index.len() as u32;
+        self.index.insert(key.to_owned(), index);
+
         index
     }
 
     fn len(&self) -> usize {
-        self.order.len()
+        self.index.len()
     }
+
+    /// Keys by position.
+    fn ordered(&self) -> Vec<&K> {
+        let mut keys: Vec<(&K, u32)> = self
+            .index
+            .iter()
+            .map(|(key, &index)| (key, index))
+            .collect();
+        keys.sort_unstable_by_key(|&(_, index)| index);
+
+        keys.into_iter().map(|(key, _)| key).collect()
+    }
+}
+
+/// An object whose children are being written.
+struct ObjectFrame<'t, 'r> {
+    object: &'t Object,
+    class: ClassRef<'r>,
+    next_child: usize,
 }
 
 struct Writer<'r> {
     options: WriteOptions,
     registry: &'r Registry,
+
     strings: Interner<Vec<u16>>,
+    /// String index of each class name already written.
+    class_names: BTreeMap<ClassId, u16>,
     vectors: Interner<[u32; 3]>,
     quaternions: Interner<[u32; 4]>,
     custom: Vec<u8>,
     /// Offsets of the blobs in `custom`; equal blobs are stored once.
     blobs: BTreeMap<Vec<u8>, u32>,
+
     data: Vec<u8>,
     counts: Counts,
 }
 
 impl<'r> Writer<'r> {
     fn finish(self) -> Result<Vec<u8>, WriteError> {
+        const MAGIC: &[u8; 4] = b"XUIB";
+        const VERSION: u32 = 5;
+        const SCHEMA: u16 = 0xC;
+        const HEADER_SIZE: usize = 0x14;
+        const SECTION_ENTRY_SIZE: usize = 12;
+
         let mut strn = Vec::new();
-        for units in &self.strings.order {
+        for units in self.strings.ordered() {
             strn.extend_from_slice(&(units.len() as u16).to_be_bytes());
             for unit in units {
                 strn.extend_from_slice(&unit.to_be_bytes());
             }
         }
+
         let mut vect = Vec::with_capacity(self.vectors.len() * 12);
-        for vector in &self.vectors.order {
-            for word in vector {
-                vect.extend_from_slice(&word.to_be_bytes());
-            }
+        for word in self.vectors.ordered().into_iter().flatten() {
+            vect.extend_from_slice(&word.to_be_bytes());
         }
+
         let mut quat = Vec::with_capacity(self.quaternions.len() * 16);
-        for quaternion in &self.quaternions.order {
-            for word in quaternion {
-                quat.extend_from_slice(&word.to_be_bytes());
-            }
+        for word in self.quaternions.ordered().into_iter().flatten() {
+            quat.extend_from_slice(&word.to_be_bytes());
         }
 
         let hints = self.options.allocation_hints.then(|| self.counts.hints());
@@ -193,14 +192,14 @@ impl<'r> Writer<'r> {
         }
         let file_size = size_word(offset)?;
 
-        let mut out = Vec::with_capacity(offset);
-        out.extend_from_slice(MAGIC);
-        out.extend_from_slice(&VERSION.to_be_bytes());
         let flags = if hints.is_some() {
             HeaderFlags::ALLOCATION_HINTS.bits()
         } else {
             0
         };
+        let mut out = Vec::with_capacity(offset);
+        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(&VERSION.to_be_bytes());
         out.extend_from_slice(&flags.to_be_bytes());
         out.extend_from_slice(&SCHEMA.to_be_bytes());
         out.extend_from_slice(&file_size.to_be_bytes());
@@ -216,8 +215,41 @@ impl<'r> Writer<'r> {
         Ok(out)
     }
 
-    /// Object trees are as deep as the scene; the recursion follows it.
-    fn object(&mut self, object: &Object) -> Result<(), WriteError> {
+    /// Writes the objects depth first: each object's record and children,
+    /// then its timelines, as the reader reads them.
+    fn tree(&mut self, root: &Object) -> Result<(), WriteError> {
+        let class = self.object_head(root)?;
+        let mut stack = alloc::vec![ObjectFrame {
+            object: root,
+            class,
+            next_child: 0,
+        }];
+
+        while let Some(top) = stack.last_mut() {
+            if let Some(child) = top.object.children.get(top.next_child) {
+                top.next_child += 1;
+                let class = self.object_head(child)?;
+                stack.push(ObjectFrame {
+                    object: child,
+                    class,
+                    next_child: 0,
+                });
+                continue;
+            }
+
+            let Some(done) = stack.pop() else {
+                break;
+            };
+            if !done.object.named_frames.is_empty() || !done.object.timelines.is_empty() {
+                self.timelines(done.object, done.class)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Class, flags, properties and child count of one object.
+    fn object_head(&mut self, object: &Object) -> Result<ClassRef<'r>, WriteError> {
         let Some(class) = self.registry.class(object.class) else {
             return Err(WriteError::ClassNotInRegistry {
                 class: object.class,
@@ -225,17 +257,17 @@ impl<'r> Writer<'r> {
         };
         self.counts.objects += 1;
 
-        let has_timelines = !object.named_frames.is_empty() || !object.timelines.is_empty();
         if !object.timelines.is_empty() && object.children.is_empty() {
             return Err(WriteError::TimelinesWithoutChildren {
                 class: class.name(),
             });
         }
+
         for property in &object.properties {
-            if !class
+            let declared = class
                 .levels()
-                .any(|level| level.def().props.iter().any(|def| property.is(def)))
-            {
+                .any(|level| level.def().props.iter().any(|def| property.is(def)));
+            if !declared {
                 return Err(WriteError::PropertyNotInClass {
                     class: class.name(),
                     property: property.def.name,
@@ -250,11 +282,11 @@ impl<'r> Writer<'r> {
         if !object.children.is_empty() {
             flags |= ObjectFlags::CHILDREN.bits();
         }
-        if has_timelines {
+        if !object.named_frames.is_empty() || !object.timelines.is_empty() {
             flags |= ObjectFlags::TIMELINES.bits();
         }
 
-        let class_index = self.string_index(Some(&WideString::from(class.name())), class.name())?;
+        let class_index = self.class_name_index(class)?;
         self.u16(class_index);
         self.u8(flags);
 
@@ -277,31 +309,46 @@ impl<'r> Writer<'r> {
         if !object.children.is_empty() {
             self.counts.parents += 1;
             self.u32(object.children.len() as u32);
-            for child in &object.children {
-                self.object(child)?;
-            }
         }
 
-        if has_timelines {
-            self.timelines(object, class)?;
-        }
-
-        Ok(())
+        Ok(class)
     }
 
-    /// One property block over `defs`; returns its entry count.
+    fn class_name_index(&mut self, class: ClassRef<'_>) -> Result<u16, WriteError> {
+        if let Some(&index) = self.class_names.get(&class.id()) {
+            return Ok(index);
+        }
+
+        let units: Vec<u16> = class.name().encode_utf16().collect();
+        let index = self.string_units(&units, StringOwner::ClassName)?;
+        self.class_names.insert(class.id(), index);
+
+        Ok(index)
+    }
+
+    /// One property block over `defs`; returns its entry count. Compound
+    /// values nest blocks; the depth is bounded by the static definition
+    /// tables.
     fn block(
         &mut self,
         defs: &'static [PropDef],
         properties: &[Property],
         class: ClassRef<'_>,
     ) -> Result<u32, WriteError> {
+        // Definitions at mask bit 32 or later can never be loaded.
+        const MASK_BITS: usize = 32;
+
         let mut mask = 0u32;
         let mut present: Vec<(&'static PropDef, &Property)> = Vec::new();
         for (index, def) in defs.iter().enumerate() {
-            let Some(property) = properties.iter().find(|property| property.is(def)) else {
+            let mut matching = properties.iter().filter(|property| property.is(def));
+            let Some(property) = matching.next() else {
                 continue;
             };
+            if matching.next().is_some() {
+                return Err(WriteError::DuplicateProperty { property: def.name });
+            }
+
             if def.flags.is_indexed() && property.values.is_empty() {
                 continue;
             }
@@ -317,6 +364,7 @@ impl<'r> Writer<'r> {
                     count: property.values.len(),
                 });
             }
+
             mask |= 1 << index;
             present.push((def, property));
         }
@@ -338,25 +386,26 @@ impl<'r> Writer<'r> {
         Ok(entries)
     }
 
-    /// [INFERENCE] Header byte: the mask size in the low three bits and the
-    /// number of set mask bits minus one in the upper five, matched against
-    /// the 6717 files.
+    /// Header byte: the mask size in the low three bits and the number of
+    /// set mask bits minus one in the upper five; a block with no set bits
+    /// is the byte 0 alone. Matched against the 6717 files.
     fn block_header(&mut self, def_count: usize, mask: u32) {
+        if mask == 0 {
+            self.u8(0);
+            return;
+        }
+
         let size: u8 = match def_count {
-            _ if mask == 0 => 0,
-            0 => 0,
-            1..=8 => 1,
+            0..=8 => 1,
             9..=16 => 2,
             _ => 4,
         };
         let set = mask.count_ones() as u8;
-        let header = size | (set.saturating_sub(1) << 3);
-        self.u8(header);
+        self.u8(size | ((set - 1) << 3));
         match size {
             1 => self.u8(mask as u8),
             2 => self.u16(mask as u16),
-            4 => self.u32(mask),
-            _ => {}
+            _ => self.u32(mask),
         }
     }
 
@@ -382,6 +431,7 @@ impl<'r> Writer<'r> {
         class: ClassRef<'_>,
     ) -> Result<(), WriteError> {
         let mismatch = || WriteError::ValueType { property: def.name };
+
         match def.ty.kind() {
             PropKind::Compound(sub_defs) => {
                 let Value::Compound(sub_properties) = value else {
@@ -395,14 +445,13 @@ impl<'r> Writer<'r> {
                         });
                     }
                 }
+
                 self.counts.property_arrays += 1;
                 let count_at = self.data.len();
                 self.u16(0);
                 let entries = self.block(sub_defs, sub_properties, class)?;
                 let Ok(entries) = u16::try_from(entries) else {
-                    return Err(WriteError::TooManyEntries {
-                        class: class.name(),
-                    });
+                    return Err(WriteError::CompoundTooManyEntries { compound: def.name });
                 };
                 self.data[count_at..count_at + 2].copy_from_slice(&entries.to_be_bytes());
             }
@@ -412,7 +461,8 @@ impl<'r> Writer<'r> {
                 (ScalarType::Unsigned, Value::Unsigned(value)) => self.u32(*value),
                 (ScalarType::Float, Value::Float(value)) => self.u32(value.to_bits()),
                 (ScalarType::String, Value::String(text)) => {
-                    let index = self.string_index(text.as_ref(), def.name)?;
+                    let index =
+                        self.string_index(text.as_ref(), StringOwner::Property(def.name))?;
                     self.u16(index);
                 }
                 (ScalarType::Color, Value::Color(color)) => self.u32(color.argb()),
@@ -434,17 +484,7 @@ impl<'r> Writer<'r> {
                     self.u32(index);
                 }
                 (ScalarType::Custom, Value::Custom(blob)) => {
-                    let offset = match self.blobs.get(blob.as_slice()) {
-                        Some(&offset) => offset,
-                        None => {
-                            let offset = size_word(self.custom.len())?;
-                            self.custom
-                                .extend_from_slice(&size_word(blob.len())?.to_be_bytes());
-                            self.custom.extend_from_slice(blob);
-                            self.blobs.insert(blob.clone(), offset);
-                            offset
-                        }
-                    };
+                    let offset = self.custom_blob(blob)?;
                     self.u32(offset);
                 }
                 _ => return Err(mismatch()),
@@ -454,18 +494,33 @@ impl<'r> Writer<'r> {
         Ok(())
     }
 
+    fn custom_blob(&mut self, blob: &[u8]) -> Result<u32, WriteError> {
+        if let Some(&offset) = self.blobs.get(blob) {
+            return Ok(offset);
+        }
+
+        let offset = size_word(self.custom.len())?;
+        self.custom
+            .extend_from_slice(&size_word(blob.len())?.to_be_bytes());
+        self.custom.extend_from_slice(blob);
+        self.blobs.insert(blob.to_vec(), offset);
+
+        Ok(offset)
+    }
+
     fn timelines(&mut self, object: &Object, class: ClassRef<'_>) -> Result<(), WriteError> {
         self.u32(object.named_frames.len() as u32);
         for frame in &object.named_frames {
             self.counts.named_frames += 1;
-            let name = self.string_index(frame.name.as_ref(), "NamedFrame")?;
+            let name = self.string_index(frame.name.as_ref(), StringOwner::NamedFrame)?;
             self.u16(name);
             self.u32(frame.time.0);
             self.u8(frame.command.0);
-            let target = self.string_index(frame.target.as_ref(), "NamedFrame")?;
+            let target = self.string_index(frame.target.as_ref(), StringOwner::NamedFrame)?;
             self.u16(target);
         }
 
+        // The reader reads timelines only for objects with children.
         if object.children.is_empty() {
             return Ok(());
         }
@@ -485,20 +540,23 @@ impl<'r> Writer<'r> {
         class: ClassRef<'_>,
     ) -> Result<(), WriteError> {
         self.counts.timelines += 1;
-        let element = self.string_index(timeline.element.as_ref(), "Timeline")?;
+        let element = self.string_index(timeline.element.as_ref(), StringOwner::Timeline)?;
         self.u16(element);
         self.u32(timeline.properties.len() as u32);
 
+        // The reader searches the children only for timelines with
+        // properties, and binds the first child with a matching `Id`.
         let target = if timeline.properties.is_empty() {
             None
         } else {
             let found = timeline
                 .element
                 .as_ref()
-                .and_then(|id| object.children.iter().find(|child| child.id() == Some(id)));
+                .and_then(|id| object.child_by_id(id.units()));
             let Some(found) = found else {
                 return Err(WriteError::TimelineTargetNotFound {
                     class: class.name(),
+                    element: timeline.element.clone(),
                 });
             };
             Some(found)
@@ -508,17 +566,14 @@ impl<'r> Writer<'r> {
         for property in &timeline.properties {
             self.counts.timeline_properties += 1;
             let element_flag = if property.element.is_some() { 0x80 } else { 0 };
-            match &property.path {
-                None => {
+            match (&property.path, target) {
+                (None, _) => {
                     if !timeline.keyframes.is_empty() {
                         return Err(WriteError::EmptyPropertyPath);
                     }
                     self.u8(element_flag);
                 }
-                Some(path) => {
-                    let Some(target) = target else {
-                        unreachable!("timelines with properties have a target");
-                    };
+                (Some(path), Some(target)) => {
                     self.path(path, target, element_flag)?;
                     if let Some(ty) = path.defs.last().and_then(|def| def.ty.scalar())
                         && ty != ScalarType::Custom
@@ -526,6 +581,7 @@ impl<'r> Writer<'r> {
                         value_types.push(ty);
                     }
                 }
+                (Some(_), None) => unreachable!("timelines with properties have a target"),
             }
             if let Some(element) = property.element {
                 self.u32(element.0);
@@ -541,6 +597,7 @@ impl<'r> Writer<'r> {
                     found: keyframe.values.len(),
                 });
             }
+
             self.u32(keyframe.time.0);
             self.u8(keyframe.interpolation.0);
             self.u8(keyframe.ease_in.0);
@@ -572,6 +629,7 @@ impl<'r> Writer<'r> {
         let Some(first) = path.defs.first() else {
             return Err(invalid());
         };
+
         let level = target_class
             .ancestor(path.levels_up.0)
             .ok_or_else(invalid)?;
@@ -583,12 +641,10 @@ impl<'r> Writer<'r> {
         if !core::ptr::eq(declared, *first) {
             return Err(invalid());
         }
-        let Ok(depth) = u8::try_from(path.defs.len()) else {
-            return Err(invalid());
-        };
-        if depth > 0x7F {
-            return Err(invalid());
-        }
+        let depth = u8::try_from(path.defs.len())
+            .ok()
+            .filter(|&depth| depth <= 0x7F)
+            .ok_or_else(invalid)?;
 
         self.counts.path_defs += u32::from(depth);
         self.u8(depth | element_flag);
@@ -613,7 +669,7 @@ impl<'r> Writer<'r> {
             (ScalarType::Unsigned, KeyframeValue::Unsigned(value)) => self.u32(*value),
             (ScalarType::Float, KeyframeValue::Float(value)) => self.u32(value.to_bits()),
             (ScalarType::String, KeyframeValue::String(text)) => {
-                let index = self.string_index(text.as_ref(), "KeyFrame")?;
+                let index = self.string_index(text.as_ref(), StringOwner::Keyframe)?;
                 self.u16(index);
             }
             (ScalarType::Color, KeyframeValue::Color(color)) => self.u32(color.argb()),
@@ -644,18 +700,29 @@ impl<'r> Writer<'r> {
     fn string_index(
         &mut self,
         text: Option<&WideString>,
-        owner: &'static str,
+        owner: StringOwner,
     ) -> Result<u16, WriteError> {
         let Some(text) = text else {
             return Ok(0);
         };
-        if text.units().len() > MAX_STRING_UNITS {
+
+        self.string_units(text.units(), owner)
+    }
+
+    fn string_units(&mut self, units: &[u16], owner: StringOwner) -> Result<u16, WriteError> {
+        // A length with bit 15 set does not load consistently.
+        const MAX_STRING_UNITS: usize = 0x7FFF;
+
+        if units.len() > MAX_STRING_UNITS {
             return Err(WriteError::StringTooLong { owner });
         }
-        let index = match self.strings.index.get(text.units()) {
-            Some(&index) => index,
-            None => self.strings.intern(&text.units().to_vec()),
-        } + 1;
+        // The reader ends strings at the first NUL.
+        if units.contains(&0) {
+            return Err(WriteError::StringHoldsNul { owner });
+        }
+
+        let index = self.strings.intern(units) + 1;
+
         u16::try_from(index).map_err(|_| WriteError::StringTableFull)
     }
 
@@ -670,6 +737,30 @@ impl<'r> Writer<'r> {
     fn u32(&mut self, value: u32) {
         self.data.extend_from_slice(&value.to_be_bytes());
     }
+}
+
+/// Serializes `tree`. `registry` must hold every class of the tree, with
+/// the definitions its properties refer to.
+pub fn write(
+    tree: &Tree,
+    registry: &Registry,
+    options: WriteOptions,
+) -> Result<Vec<u8>, WriteError> {
+    let mut writer = Writer {
+        options,
+        registry,
+        strings: Interner::new(),
+        class_names: BTreeMap::new(),
+        vectors: Interner::new(),
+        quaternions: Interner::new(),
+        custom: Vec::new(),
+        blobs: BTreeMap::new(),
+        data: Vec::new(),
+        counts: Counts::default(),
+    };
+    writer.tree(&tree.root)?;
+
+    writer.finish()
 }
 
 fn size_word(size: usize) -> Result<u32, WriteError> {

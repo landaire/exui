@@ -1,12 +1,11 @@
 //! XUIZ archive writer. Entries are stored in the given order, each one's
 //! data directly after the previous one's, as in the 6717 archives.
 
+use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
 use crate::archive::ArchiveVersion;
 use crate::error::ArchiveWriteError;
-
-const HEADER_SIZE: usize = 0x16;
 
 /// One file to store.
 #[derive(Clone, Copy, Debug)]
@@ -24,24 +23,27 @@ pub fn write_archive(
     version: ArchiveVersion,
     entries: &[NewEntry<'_>],
 ) -> Result<Vec<u8>, ArchiveWriteError> {
+    const HEADER_SIZE: usize = 0x16;
+
     let Ok(count) = u16::try_from(entries.len()) else {
         return Err(ArchiveWriteError::TooManyEntries {
             count: entries.len(),
         });
     };
 
+    let mut names: BTreeMap<Vec<u16>, usize> = BTreeMap::new();
     let mut table = Vec::new();
     let mut offset = 0usize;
     for (index, entry) in entries.iter().enumerate() {
         if entry.name.is_empty() || entry.name.contains('\0') {
             return Err(ArchiveWriteError::InvalidName { index });
         }
-        let earlier = entries[..index]
-            .iter()
-            .position(|other| same_path(other.name, entry.name));
-        if let Some(first) = earlier {
+
+        let name = normalized(entry.name);
+        if let Some(&first) = names.get(&name) {
             return Err(ArchiveWriteError::DuplicateName { first, index });
         }
+        names.insert(name, index);
 
         table.extend_from_slice(&word(entry.data.len())?.to_be_bytes());
         table.extend_from_slice(&word(offset)?.to_be_bytes());
@@ -82,17 +84,15 @@ pub fn write_archive(
     Ok(out)
 }
 
-/// Names that the lookup normalization (ASCII lowercase, `\` as `/`) makes
-/// equal.
-fn same_path(left: &str, right: &str) -> bool {
-    let normalize = |unit: u16| match u8::try_from(unit) {
-        Ok(b'\\') => u16::from(b'/'),
-        Ok(byte) => u16::from(byte.to_ascii_lowercase()),
-        Err(_) => unit,
-    };
-    left.encode_utf16()
-        .map(normalize)
-        .eq(right.encode_utf16().map(normalize))
+/// `name` as lookup compares it: ASCII lowercase, `\` as `/`.
+fn normalized(name: &str) -> Vec<u16> {
+    name.encode_utf16()
+        .map(|unit| match u8::try_from(unit) {
+            Ok(b'\\') => u16::from(b'/'),
+            Ok(byte) => u16::from(byte.to_ascii_lowercase()),
+            Err(_) => unit,
+        })
+        .collect()
 }
 
 fn word(size: usize) -> Result<u32, ArchiveWriteError> {

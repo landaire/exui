@@ -216,6 +216,28 @@ pub enum TreeError {
     InvalidCustom { property: &'static str, offset: u32 },
 }
 
+/// What a string written to the STRN table belongs to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StringOwner {
+    ClassName,
+    Property(&'static str),
+    NamedFrame,
+    Timeline,
+    Keyframe,
+}
+
+impl fmt::Display for StringOwner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ClassName => f.write_str("a class name"),
+            Self::Property(name) => write!(f, "property {name}"),
+            Self::NamedFrame => f.write_str("a named frame"),
+            Self::Timeline => f.write_str("a timeline"),
+            Self::Keyframe => f.write_str("a keyframe"),
+        }
+    }
+}
+
 /// A [`crate::tree::Tree`] that has no XUR version 5 form.
 #[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
 pub enum WriteError {
@@ -252,11 +274,20 @@ pub enum WriteError {
     #[error("an object of class {class} holds more than 65535 property values")]
     TooManyEntries { class: &'static str },
 
+    #[error("compound {compound} holds more than 65535 values")]
+    CompoundTooManyEntries { compound: &'static str },
+
+    #[error("property {property} is given more than once")]
+    DuplicateProperty { property: &'static str },
+
     #[error("object of class {class} has timelines but no children to animate")]
     TimelinesWithoutChildren { class: &'static str },
 
-    #[error("a timeline of an object of class {class} names no child element")]
-    TimelineTargetNotFound { class: &'static str },
+    #[error("a timeline of an object of class {class} names no child element ({element:?})")]
+    TimelineTargetNotFound {
+        class: &'static str,
+        element: Option<WideString>,
+    },
 
     #[error("a timeline property path does not resolve against class {class}")]
     InvalidPropertyPath { class: &'static str },
@@ -271,7 +302,10 @@ pub enum WriteError {
     KeyframeValueType,
 
     #[error("string of {owner} is longer than 32767 units")]
-    StringTooLong { owner: &'static str },
+    StringTooLong { owner: StringOwner },
+
+    #[error("string of {owner} holds a NUL unit, where the reader would end it")]
+    StringHoldsNul { owner: StringOwner },
 
     #[error("string table holds more than 65535 strings")]
     StringTableFull,

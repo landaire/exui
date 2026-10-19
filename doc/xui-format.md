@@ -183,6 +183,8 @@ Handler table at 0x9279ac38 (to string, from string, save binary, load binary). 
 - `tree::Tree` is an owned scene with resolved values. `Tree::from_document` copies a parsed document; it fails on table references that resolve to nothing, which a tree cannot express.
 - `writer::write` serializes a tree. `archive_writer::write_archive` writes XUIZ version 1 or 3 archives without entry trailers, with entry data in table order.
 
+Deliberate differences, all for inputs the original mishandles: archive entry ranges are checked when an entry is opened, section ranges are bounds-checked, every read is bounds-checked, a string length with bit 15 set is rejected, a compound holding more entries than its count is rejected, a timeline element that cannot match and a depth-0 path with keyframes are errors, and a non-compound definition inside a property path is an error (the original calls a null sub-definition getter).
+
 ## Writer
 
 The writer follows the layout of the 6717 files. Rewriting each of their 262 version 5 scenes from its tree gives the original bytes, and so does rewriting each of their archives from its entries.
@@ -192,6 +194,5 @@ The writer follows the layout of the 6717 files. Rewriting each of their 262 ver
 - An object sets flag bit 0 only when it has properties, bit 1 only with children, and bit 2 when it has named frames or timelines.
 - A property block with no selected definitions is the single byte 0. Otherwise the mask size is 1, 2 or 4 bytes for a class level or compound of up to 8, up to 16, or more definitions, and the upper five bits of the header byte hold the number of set mask bits minus one.
 - Element counts use the shortest form: one byte below 0x80, else 0x81, 0x82 or 0x84 with a u8, u16 or u32.
+- A string holding a NUL unit, a definition given twice, or a timeline with properties whose element no child has as an `Id` (any of its `Id` properties, first child wins, as the loader searches) is rejected.
 - Allocation hints are optional (`WriteOptions`); the 6717 files have them or not depending on the tool version. [INFERENCE] Matched against the ten files that have them: h0 objects, h1 value entries including those inside compounds, h2 property arrays (objects with properties plus compound values), h3 keyframe values, h4 property path definitions, h5 timeline properties, h6 keyframes, h7 timelines, h8 named frames, h9 objects with children.
-
-Deliberate differences, all for inputs the original mishandles: archive entry ranges are checked when an entry is opened, section ranges are bounds-checked, every read is bounds-checked, a string length with bit 15 set is rejected, a compound holding more entries than its count is rejected, a timeline element that cannot match and a depth-0 path with keyframes are errors, and a non-compound definition inside a property path is an error (the original calls a null sub-definition getter).
