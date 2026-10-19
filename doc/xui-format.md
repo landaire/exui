@@ -180,5 +180,18 @@ Handler table at 0x9279ac38 (to string, from string, save binary, load binary). 
 - `xur::Document` borrows the XUR bytes. Strings, vectors, quaternions and custom blobs are resolved from the input on access. The object tree is decoded into flat arenas (objects, properties, values, timelines, keyframes) whose sizes are bounded by the input length; this is the one allocating part of the reader. `ObjectRef` gives children, parent, properties (looked up by definition address), named frames and timelines. Unchecked indices (property strings, vectors, quaternions, custom offsets) stay unchecked and resolve to `None` through the document accessors. Keyframe vectors and quaternions are copied at load, as the original does.
 - Timeline value types are computed once per timeline and child `Id` strings once per parent (stably sorted), so parse time is linear in the input.
 - `custom::FigurePoints` decodes the figure point blob.
+- `tree::Tree` is an owned scene with resolved values. `Tree::from_document` copies a parsed document; it fails on table references that resolve to nothing, which a tree cannot express.
+- `writer::write` serializes a tree. `archive_writer::write_archive` writes XUIZ version 1 or 3 archives without entry trailers, with entry data in table order.
+
+## Writer
+
+The writer follows the layout of the 6717 files. Rewriting each of their 262 version 5 scenes from its tree gives the original bytes, and so does rewriting each of their archives from its entries.
+
+- Strings, vectors and quaternions are stored in order of first use while DATA is written front to back, each distinct value once (vectors and quaternions compared bit for bit). Custom blobs are stored the same way, each distinct blob once.
+- Sections are STRN, VECT, QUAT, CUST and DATA in that order; VECT, QUAT and CUST are left out when empty.
+- An object sets flag bit 0 only when it has properties, bit 1 only with children, and bit 2 when it has named frames or timelines.
+- A property block with no selected definitions is the single byte 0. Otherwise the mask size is 1, 2 or 4 bytes for a class level or compound of up to 8, up to 16, or more definitions, and the upper five bits of the header byte hold the number of set mask bits minus one.
+- Element counts use the shortest form: one byte below 0x80, else 0x81, 0x82 or 0x84 with a u8, u16 or u32.
+- Allocation hints are optional (`WriteOptions`); the 6717 files have them or not depending on the tool version. [INFERENCE] Matched against the ten files that have them: h0 objects, h1 value entries including those inside compounds, h2 property arrays (objects with properties plus compound values), h3 keyframe values, h4 property path definitions, h5 timeline properties, h6 keyframes, h7 timelines, h8 named frames, h9 objects with children.
 
 Deliberate differences, all for inputs the original mishandles: archive entry ranges are checked when an entry is opened, section ranges are bounds-checked, every read is bounds-checked, a string length with bit 15 set is rejected, a compound holding more entries than its count is rejected, a timeline element that cannot match and a depth-0 path with keyframes are errors, and a non-compound definition inside a property path is an error (the original calls a null sub-definition getter).

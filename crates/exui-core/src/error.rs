@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::archive::EntryOffset;
 use crate::archive::EntrySize;
+use crate::schema::ClassId;
 use crate::wide::WideString;
 use crate::xur::SectionTag;
 use crate::xur::StringId;
@@ -193,4 +194,107 @@ pub enum XurError {
 
     #[error("keyframe at offset {offset:#x} needs a value for an empty property path")]
     EmptyPropertyPath { offset: usize },
+}
+
+/// A [`crate::Document`] value that an owned [`crate::tree::Tree`] cannot
+/// hold: a table reference that resolves to nothing.
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum TreeError {
+    #[error("document class {class:?} is not in the registry")]
+    ClassNotInRegistry { class: ClassId },
+
+    #[error("{property} references string {index}, which is not in the STRN table")]
+    InvalidString { property: &'static str, index: u16 },
+
+    #[error("{property} references vector {index}, which is not in the VECT table")]
+    InvalidVector { property: &'static str, index: u32 },
+
+    #[error("{property} references quaternion {index}, which is not in the QUAT table")]
+    InvalidQuaternion { property: &'static str, index: u32 },
+
+    #[error("{property} references a custom blob at {offset:#x} outside the CUST section")]
+    InvalidCustom { property: &'static str, offset: u32 },
+}
+
+/// A [`crate::tree::Tree`] that has no XUR version 5 form.
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum WriteError {
+    #[error("class {class:?} is not in the registry")]
+    ClassNotInRegistry { class: ClassId },
+
+    #[error("class {class} has no property {property}")]
+    PropertyNotInClass {
+        class: &'static str,
+        property: &'static str,
+    },
+
+    #[error("compound {compound} has no sub-property {property}")]
+    PropertyNotInCompound {
+        compound: &'static str,
+        property: &'static str,
+    },
+
+    #[error("property {property} of class {class} is past mask bit 31 and cannot be loaded")]
+    UnreachableDefinition {
+        class: &'static str,
+        property: &'static str,
+    },
+
+    #[error("property {property} is not indexed but holds {count} values")]
+    ValueCount {
+        property: &'static str,
+        count: usize,
+    },
+
+    #[error("value of property {property} does not match its type")]
+    ValueType { property: &'static str },
+
+    #[error("an object of class {class} holds more than 65535 property values")]
+    TooManyEntries { class: &'static str },
+
+    #[error("object of class {class} has timelines but no children to animate")]
+    TimelinesWithoutChildren { class: &'static str },
+
+    #[error("a timeline of an object of class {class} names no child element")]
+    TimelineTargetNotFound { class: &'static str },
+
+    #[error("a timeline property path does not resolve against class {class}")]
+    InvalidPropertyPath { class: &'static str },
+
+    #[error("a timeline property path of depth 0 has keyframes")]
+    EmptyPropertyPath,
+
+    #[error("keyframe holds {found} values, its timeline needs {expected}")]
+    KeyframeValueCount { expected: usize, found: usize },
+
+    #[error("keyframe value does not match the type of its property")]
+    KeyframeValueType,
+
+    #[error("string of {owner} is longer than 32767 units")]
+    StringTooLong { owner: &'static str },
+
+    #[error("string table holds more than 65535 strings")]
+    StringTableFull,
+
+    #[error("output is larger than 4 GiB")]
+    TooLarge,
+}
+
+/// Entries that have no XUIZ form.
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ArchiveWriteError {
+    #[error("{count} entries do not fit the 16-bit entry count")]
+    TooManyEntries { count: usize },
+
+    #[error("entry {index} has an empty name or one holding NUL")]
+    InvalidName { index: usize },
+
+    #[error("name of entry {index} is longer than 255 units")]
+    NameTooLong { index: usize },
+
+    #[error("entry {index} has the name of entry {first}, so lookups never reach it")]
+    DuplicateName { first: usize, index: usize },
+
+    #[error("archive is larger than 4 GiB")]
+    TooLarge,
 }

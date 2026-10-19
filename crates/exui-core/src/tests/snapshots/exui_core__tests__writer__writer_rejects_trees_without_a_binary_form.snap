@@ -1,0 +1,27 @@
+---
+source: crates/exui-core/src/tests/writer.rs
+expression: errors
+---
+[
+    PropertyNotInClass {
+        class: "XuiCanvas",
+        property: "Flag",
+    },
+    ValueType {
+        property: "Flag",
+    },
+    TimelinesWithoutChildren {
+        class: "XuiCanvas",
+    },
+    KeyframeValueCount {
+        expected: 3,
+        found: 2,
+    },
+    TimelineTargetNotFound {
+        class: "XuiCanvas",
+    },
+    ValueCount {
+        property: "Flag",
+        count: 2,
+    },
+]

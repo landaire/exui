@@ -79,6 +79,9 @@ fn parse_all_genuine_scenes() {
 
     for path in paths {
         // Test-only: archives are under 2 MiB, so reading them whole is fine.
+        if !path.is_file() {
+            continue;
+        }
         let data = fs::read(&path).expect("asset is readable");
         if !data.starts_with(b"XUIZ") {
             continue;
@@ -115,4 +118,225 @@ fn parse_all_genuine_scenes() {
 
     assert!(failures.is_empty(), "scene failures: {failures:#?}");
     assert!(parsed > 0, "no scenes found in {}", dir.display());
+}
+
+/// Tag, offset and size of each section of a XUR file.
+fn sections(data: &[u8]) -> Vec<(String, usize, usize)> {
+    let flags = u32::from_be_bytes([data[8], data[9], data[10], data[11]]);
+    let section_count = u16::from_be_bytes([data[0x12], data[0x13]]) as usize;
+    let table = 0x14 + if flags & 1 != 0 { 40 } else { 0 };
+    (0..section_count)
+        .map(|index| {
+            let entry = &data[table + index * 12..][..12];
+            let start = u32::from_be_bytes([entry[4], entry[5], entry[6], entry[7]]) as usize;
+            let size = u32::from_be_bytes([entry[8], entry[9], entry[10], entry[11]]) as usize;
+            (
+                String::from_utf8_lossy(&entry[..4]).to_string(),
+                start,
+                size,
+            )
+        })
+        .collect()
+}
+
+/// Sections whose bytes differ, with the first differing offset.
+fn section_differences(original: &[u8], written: &[u8]) -> String {
+    let left = sections(original);
+    let right = sections(written);
+    let mut out = String::new();
+    for (tag, start, size) in &left {
+        let Some((_, other_start, other_size)) = right.iter().find(|(other, ..)| other == tag)
+        else {
+            out.push_str(&std::format!("{tag}:missing "));
+            continue;
+        };
+        let a = &original[*start..][..*size];
+        let b = &written[*other_start..][..*other_size];
+        if a != b {
+            let first = a
+                .iter()
+                .zip(b)
+                .position(|(x, y)| x != y)
+                .unwrap_or(a.len().min(b.len()));
+            out.push_str(&std::format!("{tag}@{first:#x}({size}/{other_size}) "));
+        }
+    }
+    for (tag, ..) in &right {
+        if !left.iter().any(|(other, ..)| other == tag) {
+            out.push_str(&std::format!("{tag}:extra "));
+        }
+    }
+    out
+}
+
+#[test]
+#[ignore = "needs the genuine 6717 assets in EXUI_GENUINE_DIR"]
+fn write_all_genuine_scenes() {
+    use crate::tree::Tree;
+    use crate::writer::write;
+
+    let dir = PathBuf::from(
+        env::var_os("EXUI_GENUINE_DIR")
+            .expect("EXUI_GENUINE_DIR names the genuine asset directory"),
+    );
+    let registry = dash_registry();
+    let mut identical = 0usize;
+    let mut differing: Vec<String> = Vec::new();
+    let mut failures: Vec<String> = Vec::new();
+
+    let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
+        .expect("asset directory is readable")
+        .map(|entry| entry.expect("directory entry").path())
+        .collect();
+    paths.sort();
+
+    for path in paths {
+        if !path.is_file() {
+            continue;
+        }
+        let data = fs::read(&path).expect("asset is readable");
+        if !data.starts_with(b"XUIZ") {
+            continue;
+        }
+        let archive = Archive::parse(&data, AcceptedVersions::DASH_6717).expect("archive parses");
+        for entry in archive.entries() {
+            let name = std::format!(
+                "{}/{}",
+                path.file_name().unwrap().to_string_lossy(),
+                entry.name()
+            );
+            if !name.to_ascii_lowercase().ends_with(".xur") {
+                continue;
+            }
+            let scene = archive.entry_data(&entry).expect("entry data is in bounds");
+            let Ok(doc) = Document::parse(scene, &registry) else {
+                continue;
+            };
+            let tree = match Tree::from_document(&doc, &registry) {
+                Ok(tree) => tree,
+                Err(err) => {
+                    failures.push(std::format!("{name}: tree: {err}"));
+                    continue;
+                }
+            };
+            let options = crate::writer::WriteOptions {
+                allocation_hints: doc.allocation_hints().is_some(),
+            };
+            let written = match write(&tree, &registry, options) {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    failures.push(std::format!("{name}: write: {err}"));
+                    continue;
+                }
+            };
+            match Document::parse(&written, &registry)
+                .map_err(|err| err.to_string())
+                .and_then(|reparsed| {
+                    Tree::from_document(&reparsed, &registry).map_err(|err| err.to_string())
+                }) {
+                Ok(again) if again == tree => {}
+                Ok(again) => failures.push(std::format!(
+                    "{name}: reparsed tree differs: {}",
+                    first_difference(&tree.root, &again.root)
+                )),
+                Err(err) => failures.push(std::format!("{name}: reparse: {err}")),
+            }
+
+            if written == scene {
+                identical += 1;
+            } else {
+                differing.push(std::format!(
+                    "{name}: {} hints {:?}",
+                    section_differences(scene, &written),
+                    doc.allocation_hints(),
+                ));
+            }
+        }
+    }
+
+    println!("{identical} scenes written byte for byte");
+    assert!(failures.is_empty(), "failures: {failures:#?}");
+    assert!(differing.is_empty(), "scenes differ: {differing:#?}");
+}
+
+fn first_difference(left: &crate::tree::Object, right: &crate::tree::Object) -> String {
+    if left.class != right.class {
+        return "class".to_string();
+    }
+    if left.properties != right.properties {
+        for (a, b) in left.properties.iter().zip(&right.properties) {
+            if a != b {
+                return std::format!("property {:?} vs {:?}", a, b);
+            }
+        }
+        return std::format!(
+            "property count {} vs {}",
+            left.properties.len(),
+            right.properties.len()
+        );
+    }
+    if left.named_frames != right.named_frames {
+        return "named frames".to_string();
+    }
+    if left.timelines != right.timelines {
+        for (a, b) in left.timelines.iter().zip(&right.timelines) {
+            if a != b {
+                return std::format!("timeline {:?} vs {:?}", a, b);
+            }
+        }
+        return "timeline count".to_string();
+    }
+    if left.children.len() != right.children.len() {
+        return "children count".to_string();
+    }
+    for (a, b) in left.children.iter().zip(&right.children) {
+        if a != b {
+            return first_difference(a, b);
+        }
+    }
+    "none".to_string()
+}
+
+#[test]
+#[ignore = "needs the genuine 6717 assets in EXUI_GENUINE_DIR"]
+fn write_all_genuine_archives() {
+    use crate::archive_writer::NewEntry;
+    use crate::archive_writer::write_archive;
+
+    let dir = PathBuf::from(
+        env::var_os("EXUI_GENUINE_DIR")
+            .expect("EXUI_GENUINE_DIR names the genuine asset directory"),
+    );
+    let mut checked = 0usize;
+    let mut differing: Vec<String> = Vec::new();
+    for entry in fs::read_dir(&dir).expect("asset directory is readable") {
+        let path = entry.expect("directory entry").path();
+        if !path.is_file() {
+            continue;
+        }
+        let data = fs::read(&path).expect("asset is readable");
+        let Ok(archive) = Archive::parse(&data, AcceptedVersions::DASH_6717) else {
+            continue;
+        };
+        let names: Vec<String> = archive
+            .entries()
+            .map(|entry| entry.name().to_string())
+            .collect();
+        let entries: Vec<NewEntry<'_>> = archive
+            .entries()
+            .zip(&names)
+            .map(|(entry, name)| NewEntry {
+                name,
+                data: archive.entry_data(&entry).expect("entry data is in bounds"),
+            })
+            .collect();
+        let written = write_archive(archive.version(), &entries).expect("archive writes");
+        checked += 1;
+        if written != data {
+            differing.push(path.display().to_string());
+        }
+    }
+
+    println!("{checked} archives checked");
+    assert!(differing.is_empty(), "archives differ: {differing:#?}");
 }

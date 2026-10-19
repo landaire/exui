@@ -69,6 +69,10 @@ impl fmt::Debug for WideStr<'_> {
 pub struct WideString(Vec<u16>);
 
 impl WideString {
+    pub fn new(units: Vec<u16>) -> Self {
+        Self(units)
+    }
+
     pub fn units(&self) -> &[u16] {
         &self.0
     }
