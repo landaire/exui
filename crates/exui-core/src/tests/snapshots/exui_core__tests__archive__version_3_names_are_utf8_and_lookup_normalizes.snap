@@ -1,0 +1,42 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: "[archive.open(\"scenes/a-button.png\"), archive.open(\"DE-DE/caf\\u{E9}.XUS\"),\narchive.open(\"de-de/CAF\\u{C9}.xus\"), archive.open(\"nul\"),\narchive.open(\"missing.png\"),]"
+---
+[
+    Ok(
+        [
+            112,
+            110,
+            103,
+        ],
+    ),
+    Ok(
+        [
+            115,
+            116,
+            114,
+            105,
+            110,
+            103,
+            115,
+        ],
+    ),
+    Err(
+        NotFound,
+    ),
+    Ok(
+        [
+            99,
+            32,
+            115,
+            116,
+            114,
+            105,
+            110,
+            103,
+        ],
+    ),
+    Err(
+        NotFound,
+    ),
+]

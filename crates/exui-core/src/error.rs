@@ -55,6 +55,9 @@ pub enum ArchiveError {
     #[error("XUIZ entry at offset {offset:#x} overruns the entry table")]
     EntryTableOverrun { offset: usize },
 
+    #[error("XUIZ entry at offset {offset:#x} has a name that is not UTF-8")]
+    InvalidName { offset: usize },
+
     #[error("empty archive path")]
     EmptyPath,
 

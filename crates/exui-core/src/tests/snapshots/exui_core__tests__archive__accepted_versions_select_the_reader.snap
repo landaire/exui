@@ -1,0 +1,28 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: results
+---
+[
+    Ok(
+        V1,
+    ),
+    Err(
+        UnsupportedVersion {
+            version: 1,
+        },
+    ),
+    Ok(
+        V1,
+    ),
+    Err(
+        UnsupportedVersion {
+            version: 3,
+        },
+    ),
+    Ok(
+        V3,
+    ),
+    Ok(
+        V3,
+    ),
+]

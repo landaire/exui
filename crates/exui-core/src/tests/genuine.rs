@@ -10,6 +10,7 @@ use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
 
+use crate::archive::AcceptedVersions;
 use crate::archive::Archive;
 use crate::custom::FigurePoints;
 use crate::error::XurError;
@@ -86,7 +87,7 @@ fn parse_all_genuine_scenes() {
         let archive_name = path
             .file_name()
             .map(|name| name.to_string_lossy().to_string());
-        let archive = Archive::parse(&data).expect("archive parses");
+        let archive = Archive::parse(&data, AcceptedVersions::DASH_6717).expect("archive parses");
         for entry in archive.entries() {
             let name = entry.name().to_string();
             if !name.to_ascii_lowercase().ends_with(".xur") {

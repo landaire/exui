@@ -1,4 +1,3 @@
-use exui_core::ArchiveError as Version1Error;
 use exui_core::XurError;
 use exui_core::schema::ClassId;
 use exui_core::xur::CustomOffset;
@@ -95,31 +94,4 @@ pub enum SceneError {
 
     #[error(transparent)]
     Decompile(#[from] DecompileError),
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum Version3Error {
-    #[error("XUIZ header file size {header} does not match data size {actual}")]
-    FileSizeMismatch { header: u32, actual: usize },
-
-    #[error("XUIZ data truncated at offset {offset:#x}, {needed} bytes needed")]
-    Truncated { offset: usize, needed: usize },
-
-    #[error("unsupported XUIZ version 3 flags {flags:#x}")]
-    UnsupportedFlags { flags: u32 },
-
-    #[error("XUIZ entry at offset {offset:#x} overruns the entry table")]
-    EntryTableOverrun { offset: usize },
-
-    #[error("archive entry data at offset {offset} size {size} is out of bounds")]
-    EntryOutOfBounds { offset: u32, size: u32 },
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ArchiveError {
-    #[error(transparent)]
-    Version1(#[from] Version1Error),
-
-    #[error(transparent)]
-    Version3(#[from] Version3Error),
 }

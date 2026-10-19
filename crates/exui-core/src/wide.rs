@@ -100,11 +100,17 @@ fn unit_from_be(unit: &[u8; 2]) -> u16 {
     u16::from_be_bytes(*unit)
 }
 
-fn display_units(f: &mut fmt::Formatter<'_>, units: impl Iterator<Item = u16>) -> fmt::Result {
+pub(crate) fn display_units(
+    f: &mut fmt::Formatter<'_>,
+    units: impl Iterator<Item = u16>,
+) -> fmt::Result {
     write_ascii(f, units, false)
 }
 
-fn debug_units(f: &mut fmt::Formatter<'_>, units: impl Iterator<Item = u16>) -> fmt::Result {
+pub(crate) fn debug_units(
+    f: &mut fmt::Formatter<'_>,
+    units: impl Iterator<Item = u16>,
+) -> fmt::Result {
     f.write_str("\"")?;
     write_ascii(f, units, true)?;
     f.write_str("\"")

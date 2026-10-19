@@ -3,12 +3,15 @@ use std::vec::Vec;
 use super::builder::ArchiveEntry;
 use super::builder::Bytes;
 use super::builder::build_archive;
+use crate::archive::AcceptedVersions;
 use crate::archive::Archive;
+use crate::archive::ArchiveVersion;
 use crate::archive::Entry;
 use crate::error::ArchiveError;
 
 fn sample() -> Vec<u8> {
     build_archive(
+        ArchiveVersion::V1,
         false,
         &[
             ArchiveEntry {
@@ -38,7 +41,7 @@ fn sample() -> Vec<u8> {
 #[test]
 fn entries_snapshot() {
     let bytes = sample();
-    let archive = Archive::parse(&bytes).expect("archive parses");
+    let archive = Archive::parse(&bytes, AcceptedVersions::DASH_6717).expect("archive parses");
     let entries: Vec<Entry<'_>> = archive.entries().collect();
 
     insta::assert_debug_snapshot!((archive.flags(), archive.entry_count(), entries));
@@ -47,7 +50,7 @@ fn entries_snapshot() {
 #[test]
 fn lookup_normalizes_and_first_match_wins() {
     let bytes = sample();
-    let archive = Archive::parse(&bytes).expect("archive parses");
+    let archive = Archive::parse(&bytes, AcceptedVersions::DASH_6717).expect("archive parses");
     let wide: Vec<u16> = "SCENES\\MAIN.XUR".encode_utf16().collect();
 
     insta::assert_debug_snapshot!([
@@ -69,6 +72,7 @@ fn lookup_normalizes_and_first_match_wins() {
 #[test]
 fn entry_trailers() {
     let bytes = build_archive(
+        ArchiveVersion::V1,
         true,
         &[
             ArchiveEntry {
@@ -83,7 +87,7 @@ fn entry_trailers() {
             },
         ],
     );
-    let archive = Archive::parse(&bytes).expect("archive parses");
+    let archive = Archive::parse(&bytes, AcceptedVersions::DASH_6717).expect("archive parses");
     let entries: Vec<Entry<'_>> = archive.entries().collect();
 
     insta::assert_debug_snapshot!((
@@ -138,6 +142,7 @@ fn header_and_table_errors() {
 
     // The flag asks for a trailer that the data does not hold.
     let missing_trailer = build_archive(
+        ArchiveVersion::V1,
         true,
         &[ArchiveEntry {
             name: "a",
@@ -167,7 +172,7 @@ fn header_and_table_errors() {
         &hostile_count.0,
     ]
     .into_iter()
-    .map(|bytes| Archive::parse(bytes).err())
+    .map(|bytes| Archive::parse(bytes, AcceptedVersions::DASH_6717).err())
     .collect();
 
     insta::assert_debug_snapshot!(errors);
@@ -190,11 +195,99 @@ fn entry_data_out_of_bounds() {
         .u32(0xFFFF_FFFF)
         .u8(0)
         .raw(&[1, 2]);
-    let archive = Archive::parse(&bytes.0).expect("archive parses");
+    let archive = Archive::parse(&bytes.0, AcceptedVersions::DASH_6717).expect("archive parses");
     let results: Vec<_> = archive
         .entries()
         .map(|entry| archive.entry_data(&entry))
         .collect();
 
     insta::assert_debug_snapshot!(results);
+}
+
+fn sample_v3() -> Vec<u8> {
+    build_archive(
+        ArchiveVersion::V3,
+        true,
+        &[
+            ArchiveEntry {
+                name: "Scenes\\A-Button.PNG",
+                data: b"png",
+                trailer: Some([0x01CE_9972, 0x8CA2_7226]),
+            },
+            ArchiveEntry {
+                name: "de-de\\Caf\u{E9}.xus",
+                data: b"strings",
+                trailer: Some([1, 2]),
+            },
+            ArchiveEntry {
+                name: "nul\u{0}tail",
+                data: b"c string",
+                trailer: Some([3, 4]),
+            },
+        ],
+    )
+}
+
+#[test]
+fn version_3_entries_snapshot() {
+    let bytes = sample_v3();
+    let archive = Archive::parse(&bytes, AcceptedVersions::XAM_21256).expect("archive parses");
+    let entries: Vec<Entry<'_>> = archive.entries().collect();
+
+    insta::assert_debug_snapshot!((archive.version(), archive.flags(), entries));
+}
+
+#[test]
+fn version_3_names_are_utf8_and_lookup_normalizes() {
+    let bytes = sample_v3();
+    let archive = Archive::parse(&bytes, AcceptedVersions::XAM_21256).expect("archive parses");
+
+    insta::assert_debug_snapshot!([
+        archive.open("scenes/a-button.png"),
+        archive.open("DE-DE/caf\u{E9}.XUS"),
+        // Only ASCII letters fold.
+        archive.open("de-de/CAF\u{C9}.xus"),
+        archive.open("nul"),
+        archive.open("missing.png"),
+    ]);
+}
+
+#[test]
+fn accepted_versions_select_the_reader() {
+    let v1 = sample();
+    let v3 = sample_v3();
+    let results: Vec<_> = [
+        (&v1, AcceptedVersions::DASH_6717),
+        (&v1, AcceptedVersions::XAM_21256),
+        (&v1, AcceptedVersions::ALL),
+        (&v3, AcceptedVersions::DASH_6717),
+        (&v3, AcceptedVersions::XAM_21256),
+        (&v3, AcceptedVersions::ALL),
+    ]
+    .into_iter()
+    .map(|(bytes, accepted)| Archive::parse(bytes, accepted).map(|archive| archive.version()))
+    .collect();
+
+    insta::assert_debug_snapshot!(results);
+}
+
+#[test]
+fn version_3_rejects_names_that_are_not_utf8() {
+    let mut bytes = Bytes::default();
+    bytes
+        .raw(b"XUIZ")
+        .u32(3)
+        .u32(0x16 + 10)
+        .u32(0)
+        .u32(10)
+        .u16(1)
+        .u32(0)
+        .u32(0)
+        .u8(1)
+        .u8(0xFF);
+
+    assert_eq!(
+        Archive::parse(&bytes.0, AcceptedVersions::XAM_21256).err(),
+        Some(ArchiveError::InvalidName { offset: 0x16 })
+    );
 }

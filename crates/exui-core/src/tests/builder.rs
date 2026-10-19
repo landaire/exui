@@ -3,6 +3,8 @@
 use std::string::String;
 use std::vec::Vec;
 
+use crate::archive::ArchiveVersion;
+
 /// Writes big-endian values.
 #[derive(Default)]
 pub struct Bytes(pub Vec<u8>);
@@ -186,17 +188,31 @@ pub struct ArchiveEntry<'a> {
     pub trailer: Option<[u32; 2]>,
 }
 
-/// XUIZ bytes with entries laid out in order after the table. Trailers are
-/// written for entries that have one; `trailer_flag` is written as given so
-/// fixtures can disagree with the entries on purpose.
-pub fn build_archive(trailer_flag: bool, entries: &[ArchiveEntry<'_>]) -> Vec<u8> {
+/// XUIZ bytes of `version` with entries laid out in order after the table.
+/// Trailers are written for entries that have one; `trailer_flag` is
+/// written as given so fixtures can disagree with the entries on purpose.
+pub fn build_archive(
+    version: ArchiveVersion,
+    trailer_flag: bool,
+    entries: &[ArchiveEntry<'_>],
+) -> Vec<u8> {
     let mut table = Bytes::default();
     let mut payload = Bytes::default();
     for entry in entries {
         let offset = u32::try_from(payload.0.len()).expect("offset fits u32");
         let size = u32::try_from(entry.data.len()).expect("size fits u32");
-        let name_len = u8::try_from(entry.name.encode_utf16().count()).expect("name fits u8");
-        table.u32(size).u32(offset).u8(name_len).wide(entry.name);
+        table.u32(size).u32(offset);
+        match version {
+            ArchiveVersion::V1 => {
+                let name_len =
+                    u8::try_from(entry.name.encode_utf16().count()).expect("name fits u8");
+                table.u8(name_len).wide(entry.name);
+            }
+            ArchiveVersion::V3 => {
+                let name_len = u8::try_from(entry.name.len()).expect("name fits u8");
+                table.u8(name_len).raw(entry.name.as_bytes());
+            }
+        }
 
         payload.raw(entry.data);
         if let Some([word0, word1]) = entry.trailer {
@@ -207,7 +223,7 @@ pub fn build_archive(trailer_flag: bool, entries: &[ArchiveEntry<'_>]) -> Vec<u8
     let total = 0x16 + table.0.len() + payload.0.len();
     let mut out = Bytes::default();
     out.raw(b"XUIZ")
-        .u32(1)
+        .u32(version.number())
         .u32(u32::try_from(total).expect("archive size fits u32"))
         .u32(u32::from(trailer_flag))
         .u32(u32::try_from(table.0.len()).expect("table size fits u32"))

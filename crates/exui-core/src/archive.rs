@@ -1,17 +1,84 @@
 //! XUIZ archive reader.
 //!
-//! Layout and lookup rules follow `XuiZipArchiveOpen` (0x921737a8) and
-//! `XuiZipOpenFile` (0x92173498) of dash 6717; see doc/xui-format.md.
-//! The reader borrows the archive bytes and decodes entries on demand.
+//! Version 1 follows `XuiZipArchiveOpen` (0x921737a8) and `XuiZipOpenFile`
+//! (0x92173498) of dash 6717; version 3 follows the XUIZ reader of
+//! `xam.xex` 2.0.21256.0 (0x81980120). See doc/xui-format.md. The reader
+//! borrows the archive bytes and decodes entries on demand.
+
+use core::fmt;
+use core::str::EncodeUtf16;
 
 use crate::cursor::Cursor;
 use crate::cursor::Short;
 use crate::error::ArchiveError;
+use crate::wide::Units;
 use crate::wide::WideStr;
+use crate::wide::debug_units;
+use crate::wide::display_units;
 
 const HEADER_SIZE: usize = 0x16;
 const ENTRY_FIXED_SIZE: usize = 9;
 const TRAILER_SIZE: usize = 8;
+
+/// XUIZ format version. Each XUI build reads one version only: dash 6717
+/// reads version 1 and `xam.xex` 2.0.21256.0 reads version 3.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ArchiveVersion {
+    /// Names are UTF-16.
+    V1,
+    /// Names are UTF-8.
+    V3,
+}
+
+impl ArchiveVersion {
+    /// The version word of the header.
+    pub const fn number(self) -> u32 {
+        match self {
+            Self::V1 => 1,
+            Self::V3 => 3,
+        }
+    }
+
+    const fn from_number(number: u32) -> Option<Self> {
+        match number {
+            1 => Some(Self::V1),
+            3 => Some(Self::V3),
+            _ => None,
+        }
+    }
+
+    const fn bit(self) -> u8 {
+        match self {
+            Self::V1 => 0x1,
+            Self::V3 => 0x2,
+        }
+    }
+}
+
+/// The versions [`Archive::parse`] accepts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AcceptedVersions(u8);
+
+impl AcceptedVersions {
+    /// What the XUI of dash 6717 accepts.
+    pub const DASH_6717: Self = Self::only(ArchiveVersion::V1);
+    /// What the XUI of `xam.xex` 2.0.21256.0 accepts.
+    pub const XAM_21256: Self = Self::only(ArchiveVersion::V3);
+    /// Every version this reader knows.
+    pub const ALL: Self = Self::DASH_6717.union(Self::XAM_21256);
+
+    pub const fn only(version: ArchiveVersion) -> Self {
+        Self(version.bit())
+    }
+
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    pub const fn contains(self, version: ArchiveVersion) -> bool {
+        self.0 & version.bit() != 0
+    }
+}
 
 /// Archive header flag word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,16 +107,72 @@ pub struct EntryOffset(pub u32);
 pub struct EntrySize(pub u32);
 
 /// The two words stored after an entry's data when
-/// [`ArchiveFlags::ENTRY_TRAILERS`] is set. Their use is not known.
+/// [`ArchiveFlags::ENTRY_TRAILERS`] is set. Their use is not known. Version
+/// 3 archives store a FILETIME there, followed by more bytes that the reader
+/// does not load.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EntryTrailer {
     pub word0: u32,
     pub word1: u32,
 }
 
+/// Entry name as stored. It ends before the first NUL, as the original uses
+/// names as C strings.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EntryName<'a> {
+    /// Version 1: big-endian UTF-16.
+    Utf16(WideStr<'a>),
+    /// Version 3: UTF-8, which the original converts to UTF-16 for lookup.
+    Utf8(&'a str),
+}
+
+impl<'a> EntryName<'a> {
+    /// The name as UTF-16 code units.
+    pub fn units(self) -> NameUnits<'a> {
+        match self {
+            Self::Utf16(name) => NameUnits::Utf16(name.units()),
+            Self::Utf8(name) => NameUnits::Utf8(name.encode_utf16()),
+        }
+    }
+
+    pub fn eq_str(self, text: &str) -> bool {
+        self.units().eq(text.encode_utf16())
+    }
+}
+
+impl fmt::Display for EntryName<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        display_units(f, self.units())
+    }
+}
+
+impl fmt::Debug for EntryName<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        debug_units(f, self.units())
+    }
+}
+
+/// Code units of an [`EntryName`].
+#[derive(Clone, Debug)]
+pub enum NameUnits<'a> {
+    Utf16(Units<'a>),
+    Utf8(EncodeUtf16<'a>),
+}
+
+impl Iterator for NameUnits<'_> {
+    type Item = u16;
+
+    fn next(&mut self) -> Option<u16> {
+        match self {
+            Self::Utf16(units) => units.next(),
+            Self::Utf8(units) => units.next(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Entry<'a> {
-    name: WideStr<'a>,
+    name: EntryName<'a>,
     offset: EntryOffset,
     size: EntrySize,
     trailer: Option<EntryTrailer>,
@@ -58,7 +181,7 @@ pub struct Entry<'a> {
 impl<'a> Entry<'a> {
     /// Name as stored. Lookups compare it after the original's
     /// normalization (ASCII letters lowercased, backslashes as slashes).
-    pub fn name(&self) -> WideStr<'a> {
+    pub fn name(&self) -> EntryName<'a> {
         self.name
     }
 
@@ -85,6 +208,7 @@ impl<'a> Entry<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct Archive<'a> {
     data: &'a [u8],
+    version: ArchiveVersion,
     flags: ArchiveFlags,
     table: &'a [u8],
     entry_count: u16,
@@ -92,7 +216,9 @@ pub struct Archive<'a> {
 
 impl<'a> Archive<'a> {
     /// Validates the header and every entry record without allocating.
-    pub fn parse(data: &'a [u8]) -> Result<Self, ArchiveError> {
+    /// Versions outside `accepted` fail with
+    /// [`ArchiveError::UnsupportedVersion`].
+    pub fn parse(data: &'a [u8], accepted: AcceptedVersions) -> Result<Self, ArchiveError> {
         // The original reads the whole header before checking any field.
         let Some(header_bytes) = data.get(..HEADER_SIZE) else {
             return Err(ArchiveError::Truncated {
@@ -109,10 +235,12 @@ impl<'a> Archive<'a> {
             return Err(ArchiveError::BadMagic { found });
         }
 
-        let version = header.u32().map_err(truncated)?;
-        if version != 1 {
-            return Err(ArchiveError::UnsupportedVersion { version });
-        }
+        let version_number = header.u32().map_err(truncated)?;
+        let version = ArchiveVersion::from_number(version_number)
+            .filter(|version| accepted.contains(*version))
+            .ok_or(ArchiveError::UnsupportedVersion {
+                version: version_number,
+            })?;
 
         let file_size = header.u32().map_err(truncated)?;
         if usize::try_from(file_size).ok() != Some(data.len()) {
@@ -138,6 +266,7 @@ impl<'a> Archive<'a> {
 
         let archive = Self {
             data,
+            version,
             flags,
             table,
             entry_count,
@@ -149,6 +278,10 @@ impl<'a> Archive<'a> {
         }
 
         Ok(archive)
+    }
+
+    pub fn version(&self) -> ArchiveVersion {
+        self.version
     }
 
     pub fn flags(&self) -> ArchiveFlags {
@@ -211,8 +344,9 @@ impl<'a> Archive<'a> {
     }
 
     fn read_entry(&self, cursor: &mut Cursor<'a>) -> Result<Entry<'a>, ArchiveError> {
+        let entry_offset = cursor.offset();
         let overrun = ArchiveError::EntryTableOverrun {
-            offset: cursor.offset(),
+            offset: entry_offset,
         };
 
         if cursor.remaining() < ENTRY_FIXED_SIZE {
@@ -222,7 +356,21 @@ impl<'a> Archive<'a> {
         let size = EntrySize(cursor.u32().map_err(truncated)?);
         let offset = EntryOffset(cursor.u32().map_err(truncated)?);
         let name_len = usize::from(cursor.u8().map_err(truncated)?);
-        let name_bytes = cursor.bytes(name_len * 2).map_err(|_| overrun)?;
+        let name = match self.version {
+            ArchiveVersion::V1 => {
+                let bytes = cursor.bytes(name_len * 2).map_err(|_| overrun)?;
+                EntryName::Utf16(WideStr::from_be_bytes(bytes))
+            }
+            ArchiveVersion::V3 => {
+                let bytes = cursor.bytes(name_len).map_err(|_| overrun)?;
+                // How the original converts malformed UTF-8 is not known, so
+                // such names are refused.
+                let text = core::str::from_utf8(bytes).map_err(|_| ArchiveError::InvalidName {
+                    offset: entry_offset,
+                })?;
+                EntryName::Utf8(text.split('\0').next().unwrap_or(text))
+            }
+        };
 
         let trailer = if self.flags.contains(ArchiveFlags::ENTRY_TRAILERS) {
             Some(self.read_trailer(offset, size)?)
@@ -231,7 +379,7 @@ impl<'a> Archive<'a> {
         };
 
         Ok(Entry {
-            name: WideStr::from_be_bytes(name_bytes),
+            name,
             offset,
             size,
             trailer,
@@ -309,6 +457,7 @@ impl<'a> Iterator for Entries<'a> {
 
 /// `_wcslwr_s` in the C locale plus backslash folding, as
 /// `XuiZipNormalizePath` (0x92172ca8) applies to stored names and queries.
+/// The version 3 reader of `xam.xex` 2.0.21256.0 applies the same (0x8197f4c8).
 fn normalize_unit(unit: u16) -> u16 {
     match unit {
         0x41..=0x5A => unit + 0x20,

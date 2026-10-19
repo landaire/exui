@@ -245,7 +245,7 @@ fn xuiz_archive_hud_is_v3() {
     let entries = archive.entries().expect("entries");
 
     assert_eq!(archive.version(), 3);
-    // Version 3 names are single-byte; a UTF-16 decode yields CJK text.
+    // Version 3 names are UTF-8; a UTF-16 decode yields CJK text.
     assert!(entries.iter().any(|entry| entry.name == "Strings.xus"));
     assert!(
         entries

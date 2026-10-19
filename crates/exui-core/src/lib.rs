@@ -16,7 +16,9 @@ pub mod xur;
 #[cfg(test)]
 mod tests;
 
+pub use archive::AcceptedVersions;
 pub use archive::Archive;
+pub use archive::ArchiveVersion;
 pub use error::ArchiveError;
 pub use error::Region;
 pub use error::RegisterError;

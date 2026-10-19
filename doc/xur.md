@@ -8,7 +8,7 @@ All multi-byte integers are big-endian.
 
 ## XUIZ version 3
 
-Same layout as version 1, except each entry name is stored as `name length` single bytes instead of UTF-16 units. The observed archive has flags 0, so the version 1 trailer flag is not known to apply.
+See [xui-format.md](xui-format.md#version-3).
 
 ## Packed integers
 

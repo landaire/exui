@@ -61,6 +61,10 @@ The entry table follows at 0x16. Entry data starts at `0x16 + table size`. Each 
 
 Lookup (`XuiZipOpenFile`): an empty path fails with 0x80300012. The path is normalized the same way and compared with `wcscmp` against each entry in table order; the first match wins. No match fails with 0x80300013. The entry data range is not checked at open time.
 
+### Version 3
+
+The XUIZ reader of `xam.xex` 2.0.21256.0 (0x81980120) accepts version 3 only, as the dash 6717 reader accepts version 1 only. The header, the entry table and the lookup are those of version 1 with one difference: the name length counts bytes, and the name is UTF-8, which the reader converts to UTF-16 (`MultiByteToWideChar` with code page 65001) before it normalizes the name as above (0x8197f4c8). With flag bit 0 the reader loads the same two words after the entry data. The system archives set the flag and store a FILETIME there, followed by a u16 length and the build path of the file, which the reader does not load.
+
 ## XUR header
 
 | Offset | Type | Meaning |
@@ -172,7 +176,7 @@ Handler table at 0x9279ac38 (to string, from string, save binary, load binary). 
 
 `exui-core`:
 
-- `archive::Archive` borrows the XUIZ bytes. `parse` validates every entry record without allocating, `entries()` decodes them on demand, and `open`/`find` apply the original normalization and first-match lookup.
+- `archive::Archive` borrows the XUIZ bytes. `parse` takes the versions to accept (`AcceptedVersions::DASH_6717`, `XAM_21256` or `ALL`), validates every entry record without allocating, `entries()` decodes them on demand, and `open`/`find` apply the original normalization and first-match lookup. A version 3 name that is not valid UTF-8 is rejected, because the original's conversion of such names is not known.
 - `xur::Document` borrows the XUR bytes. Strings, vectors, quaternions and custom blobs are resolved from the input on access. The object tree is decoded into flat arenas (objects, properties, values, timelines, keyframes) whose sizes are bounded by the input length; this is the one allocating part of the reader. `ObjectRef` gives children, parent, properties (looked up by definition address), named frames and timelines. Unchecked indices (property strings, vectors, quaternions, custom offsets) stay unchecked and resolve to `None` through the document accessors. Keyframe vectors and quaternions are copied at load, as the original does.
 - Timeline value types are computed once per timeline and child `Id` strings once per parent (stably sorted), so parse time is linear in the input.
 - `custom::FigurePoints` decodes the figure point blob.

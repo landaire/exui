@@ -1,0 +1,57 @@
+---
+source: crates/exui-core/src/tests/archive.rs
+expression: "(archive.version(), archive.flags(), entries)"
+---
+(
+    V3,
+    ArchiveFlags(
+        1,
+    ),
+    [
+        Entry {
+            name: "Scenes\\A-Button.PNG",
+            offset: EntryOffset(
+                0,
+            ),
+            size: EntrySize(
+                3,
+            ),
+            trailer: Some(
+                EntryTrailer {
+                    word0: 30316914,
+                    word1: 2359456294,
+                },
+            ),
+        },
+        Entry {
+            name: "de-de\\Caf\u{00E9}.xus",
+            offset: EntryOffset(
+                11,
+            ),
+            size: EntrySize(
+                7,
+            ),
+            trailer: Some(
+                EntryTrailer {
+                    word0: 1,
+                    word1: 2,
+                },
+            ),
+        },
+        Entry {
+            name: "nul",
+            offset: EntryOffset(
+                26,
+            ),
+            size: EntrySize(
+                8,
+            ),
+            trailer: Some(
+                EntryTrailer {
+                    word0: 3,
+                    word1: 4,
+                },
+            ),
+        },
+    ],
+)
