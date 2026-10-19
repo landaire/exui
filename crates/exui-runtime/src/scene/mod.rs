@@ -1,5 +1,5 @@
 //! XUI element tree: instantiation from XUR documents, properties, layout
-//! and rendering into a draw list.
+//! and rendering into a draw list (doc/xui-render.md).
 
 mod content;
 mod error;

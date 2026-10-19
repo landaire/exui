@@ -946,6 +946,8 @@ Base `XuiScene`. Registered at 0x9258c870, getter 0x92588658, table 0x927fc930.
 | 0 | Script | String | 0x18 | null | 0xc | - | - | - | - |
 | 1 | Visible | Bool | 0x8 | true | 0x8 | - | - | - | - |
 
+exui text decompilations label property 0 `ScriptPath`; dash.exe registers it as `Script`. The genuine `blademp/marketplaceSignedOut.xur` stores `marketplace.scb` in it.
+
 ### ScriptButton
 
 Base `XuiButton`. Registered at 0x9258caa8, getter 0x9258c138, table 0x927fca50.

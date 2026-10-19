@@ -1,5 +1,5 @@
-//! Render traversal (xui-render.md sections 5, 6, 8 to 10; text in
-//! xui-text.md section 5).
+//! Render traversal (doc/xui-render.md sections 5, 6, 8 to 10; text in
+//! doc/xui-text.md section 5).
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;

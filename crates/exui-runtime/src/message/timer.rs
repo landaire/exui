@@ -1,5 +1,5 @@
 //! Element timers: `XuiSetTimer`, `XuiKillTimer`, `XuiProcessTimers`
-//! (xui-controls.md "Timers").
+//! (doc/xui-controls.md "Timers").
 
 use alloc::vec::Vec;
 

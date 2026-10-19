@@ -378,7 +378,7 @@ impl<'p> Resources<'p> {
             .ok_or(ResourceError::SectionNotFound { module, section })?;
         // The dash 6717 XUI reads version 1 only. Version 3 is also read
         // because the shared system resources of system software 2.0.21256.0
-        // are a version 3 archive (dash-resources.md).
+        // are a version 3 archive.
         let archive = Archive::parse(data, AcceptedVersions::ALL)
             .map_err(|source| ResourceError::Archive { section, source })?;
 

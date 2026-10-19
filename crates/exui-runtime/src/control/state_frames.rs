@@ -1,5 +1,5 @@
 //! Control visual state frames and the fallback table
-//! (xui-controls.md "Control visual state").
+//! (doc/xui-controls.md "Control visual state").
 
 use crate::control::Builtin;
 use crate::error::NoStateFrames;

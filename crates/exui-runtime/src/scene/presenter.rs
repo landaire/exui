@@ -1,5 +1,5 @@
 //! Presenter data binding: text and image presenters pull their content
-//! from the owner control on every render (xui-controls.md section 6).
+//! from the owner control on every render (doc/xui-controls.md section 6).
 
 use alloc::borrow::Cow;
 

@@ -1,4 +1,5 @@
-//! XUI text: font files, typefaces, the glyph cache and line layout.
+//! XUI text: font files, typefaces, the glyph cache and line layout
+//! (doc/xui-text.md).
 
 mod cache;
 mod error;

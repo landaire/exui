@@ -21,7 +21,7 @@ use crate::timeline::Segment;
 use crate::timeline::TimelineData;
 use crate::timeline::TrackData;
 
-/// Named frame command byte of a XUR file (xui-timelines.md 5).
+/// Named frame command byte of a XUR file (doc/xui-timelines.md 5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 enum XurCommand {

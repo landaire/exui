@@ -1,5 +1,5 @@
 //! Skin registry, visual lookup and control visual creation
-//! (xui-controls.md "Visual and skin resolution").
+//! (doc/xui-controls.md "Visual and skin resolution").
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;

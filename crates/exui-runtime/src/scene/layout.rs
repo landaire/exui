@@ -1,4 +1,5 @@
-//! Size, position, design capture and Anchor re-layout.
+//! Size, position, design capture and Anchor re-layout
+//! (doc/xui-render.md section 4).
 
 use alloc::vec::Vec;
 

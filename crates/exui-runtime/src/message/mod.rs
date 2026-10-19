@@ -1,4 +1,5 @@
-//! XUI messages, class behaviors and dispatch (xui-controls.md "Messages").
+//! XUI messages, class behaviors and dispatch (doc/xui-controls.md
+//! "Messages").
 
 mod dispatch;
 mod keys;

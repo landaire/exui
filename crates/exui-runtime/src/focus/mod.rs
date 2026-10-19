@@ -1,5 +1,5 @@
 //! Focus slots, initial focus, explicit navigation paths, tab order and
-//! keystroke routing (xui-controls.md "Input", "Focus", "Navigation").
+//! keystroke routing (doc/xui-controls.md "Input", "Focus", "Navigation").
 
 #[cfg(test)]
 mod tests;

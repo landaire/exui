@@ -1,5 +1,5 @@
-//! XuiImage size modes and XuiNineGrid geometry (xui-render.md sections 9
-//! and 10).
+//! XuiImage size modes and XuiNineGrid geometry (doc/xui-render.md
+//! sections 9 and 10).
 
 use alloc::vec::Vec;
 

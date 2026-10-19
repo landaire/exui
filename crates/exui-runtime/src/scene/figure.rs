@@ -1,5 +1,5 @@
 //! XuiFigure: path flattening, fill triangulation, stroke strips, gradient
-//! textures and fill transforms.
+//! textures and fill transforms (doc/xui-render.md section 8).
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -117,7 +117,7 @@ impl Default for GradientStops {
     }
 }
 
-/// Fill.FillType (xui-render.md 8). The getter returns values without a
+/// Fill.FillType (doc/xui-render.md 8). The getter returns values without a
 /// fill behavior unchanged.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FillType {

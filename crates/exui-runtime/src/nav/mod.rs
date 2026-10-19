@@ -1,5 +1,5 @@
-//! Scene creation, transitions and scene navigation (xui-timelines.md
-//! section 7).
+//! Scene creation, transitions and scene navigation
+//! (doc/xui-timelines.md section 7).
 
 use alloc::format;
 use alloc::rc::Rc;
@@ -464,7 +464,7 @@ impl Context<'_, '_> {
         kind: TransitionKind,
         action: TransitionAction,
     ) {
-        // Defaults of the transition record reader (xui-timelines.md 7).
+        // Defaults of the transition record reader (doc/xui-timelines.md 7).
         const DEFAULT_TRANSITION_WIDTH: f32 = 60.0;
         const DEFAULT_TRANSITION_HEIGHT: f32 = 40.0;
 

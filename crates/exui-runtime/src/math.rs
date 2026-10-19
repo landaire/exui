@@ -1,5 +1,5 @@
 //! Row-vector 4x4 matrices as used by XUI (`v' = v * M`, translation in
-//! row 3).
+//! row 3). See doc/xui-render.md.
 
 use exui_core::value::Quaternion;
 use exui_core::value::Vector3;

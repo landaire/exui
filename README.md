@@ -38,6 +38,8 @@ loop {
 }
 ```
 
+The behavior the runtime reproduces is described in [doc/xui-render.md](doc/xui-render.md), [doc/xui-controls.md](doc/xui-controls.md), [doc/xui-timelines.md](doc/xui-timelines.md) and [doc/xui-text.md](doc/xui-text.md).
+
 [`exui-extension`](crates/exui-extension) is the descriptor format of extension archives, which add scenes and patch existing ones without changing the base archives.
 
 ## Building

@@ -1,5 +1,5 @@
-//! Keyframe value interpolation and ease curves (xui-timelines.md 2, 4.2,
-//! 4.3).
+//! Keyframe value interpolation and ease curves (doc/xui-timelines.md 2,
+//! 4.2, 4.3).
 
 use exui_core::value::Color;
 use exui_core::value::Quaternion;

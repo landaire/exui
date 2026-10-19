@@ -1,5 +1,5 @@
 //! Timeline playback, named frames and keyframe evaluation
-//! (xui-timelines.md sections 1 to 6).
+//! (doc/xui-timelines.md sections 1 to 6).
 //!
 //! Time is float milliseconds at 60 frames per second. Each frame the caller
 //! advances every registered timeline by the measured frame time.

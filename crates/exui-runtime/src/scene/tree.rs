@@ -108,7 +108,7 @@ impl Anchor {
     }
 }
 
-/// BlendMode property value (xui-render.md 6). Values above 6 leave the
+/// BlendMode property value (doc/xui-render.md 6). Values above 6 leave the
 /// device state unchanged but are still inherited and compared.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum XuiBlendMode {

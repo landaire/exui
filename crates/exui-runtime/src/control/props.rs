@@ -1,5 +1,5 @@
 //! Property definitions read and written by the built-in behaviors.
-//! Positions follow the class registration tables in xui-classes.md.
+//! Positions follow the class registration tables in doc/xui-classes.md.
 
 use exui_core::schema::ClassDef;
 use exui_core::schema::PropDef;

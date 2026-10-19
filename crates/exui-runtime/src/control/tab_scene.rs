@@ -1,5 +1,5 @@
 //! XuiTabScene level (0x92160100) and tab frame selection
-//! (xui-timelines.md section 8, xui-controls.md "XuiTabScene").
+//! (doc/xui-timelines.md section 8, doc/xui-controls.md "XuiTabScene").
 
 use alloc::format;
 use alloc::string::String;

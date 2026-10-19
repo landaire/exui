@@ -1,7 +1,7 @@
 //! Texture objects: images the application hands to the UI, such as the
 //! texture object of message 0x7e1 (+0x14) or the image a control draws in
-//! its render handler (xui-controls.md). An object uploads its image on the
-//! first draw; its texture is destroyed after the last reference drops,
+//! its render handler (doc/xui-controls.md). An object uploads its image on
+//! the first draw; its texture is destroyed after the last reference drops,
 //! like the reference-counted textures of the original.
 
 use alloc::collections::BTreeSet;
