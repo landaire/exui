@@ -1,0 +1,20 @@
+---
+source: crates/exui-extension/src/tests.rs
+expression: errors
+---
+[
+    Magic,
+    Version {
+        version: 2,
+    },
+    Malformed {
+        offset: 173,
+    },
+    Trailing {
+        trailing: 1,
+    },
+    Name,
+    Malformed {
+        offset: 40,
+    },
+]

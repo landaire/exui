@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [".", "crates/exui-core"]
+members = [".", "crates/exui-core", "crates/exui-extension", "crates/exui-runtime"]
 
 [workspace.package]
 version = "0.1.0"
@@ -8,6 +8,7 @@ edition = "2024"
 
 [workspace.dependencies]
 exui-core = { path = "crates/exui-core" }
+exui-extension = { path = "crates/exui-extension" }
 insta = "1"
 thiserror = { version = "2", default-features = false }
 winnow = { version = "1", default-features = false }

@@ -1,0 +1,41 @@
+---
+source: crates/exui-runtime/src/text/layout.rs
+expression: cases
+---
+[
+    (
+        "single line measurer wraps",
+        Extent {
+            width: 85,
+            height: 44,
+        },
+    ),
+    (
+        "single line style",
+        Extent {
+            width: 84,
+            height: 22,
+        },
+    ),
+    (
+        "no wrap widens to full line",
+        Extent {
+            width: 169,
+            height: 22,
+        },
+    ),
+    (
+        "right no wrap widens to full line",
+        Extent {
+            width: 169,
+            height: 22,
+        },
+    ),
+    (
+        "multi line measurer",
+        Extent {
+            width: 40,
+            height: 44,
+        },
+    ),
+]

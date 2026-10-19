@@ -1,0 +1,11 @@
+---
+source: crates/exui-runtime/src/focus/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+start a
+down (b hidden, follows b.NavDown): handled true focus c
+down (c.NavDown names c): handled true focus c
+up (d disabled): handled true focus d
+left (no NavLeft): handled false focus d
+right from a into g\e: handled true focus e
+right from e via ..\a: handled true focus a

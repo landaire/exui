@@ -1,0 +1,70 @@
+---
+source: crates/exui-runtime/src/text/tests.rs
+expression: cases
+---
+[
+    (
+        "wrap at space",
+        [
+            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(7, 0)-(21, 19) texels [17.0, 1.0, 31.0, 20.0] color FFFFFFFF",
+            "(21, 0)-(26, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(1, 18)-(11, 37) texels [49.0, 1.0, 59.0, 20.0] color FFFFFFFF",
+            "(13, 18)-(23, 37) texels [49.0, 1.0, 59.0, 20.0] color FFFFFFFF",
+            "(25, 18)-(35, 37) texels [49.0, 1.0, 59.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "right aligned",
+        [
+            "(37, 0)-(42, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(44, 0)-(49, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "centered both ways",
+        [
+            "(19, 11)-(24, 30) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(26, 11)-(31, 30) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "ellipsis",
+        [
+            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(8, 0)-(13, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(15, 0)-(20, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(22, 0)-(35, 19) texels [81.0, 1.0, 94.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "right no wrap clips start",
+        [
+            "(3, 0)-(8, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(10, 0)-(15, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(17, 0)-(22, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(24, 0)-(29, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "drop shadow",
+        [
+            "(2, 1)-(7, 20) texels [1.0, 1.0, 6.0, 20.0] color 80000000",
+            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "vertical clip",
+        [
+            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(1, 18)-(6, 25) texels [1.0, 1.0, 6.0, 8.0] color FFFFFFFF",
+        ],
+    ),
+    (
+        "fallback and default glyph",
+        [
+            "(1, 0)-(16, 19) texels [113.0, 1.0, 128.0, 20.0] color FFFFFFFF",
+            "(16, 0)-(26, 19) texels [145.0, 1.0, 155.0, 20.0] color FFFFFFFF",
+        ],
+    ),
+]

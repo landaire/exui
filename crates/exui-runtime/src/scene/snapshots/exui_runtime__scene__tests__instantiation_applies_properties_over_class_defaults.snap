@@ -1,0 +1,9 @@
+---
+source: crates/exui-runtime/src/scene/tests.rs
+expression: "dump(&tree, &registry, root)"
+---
+XuiCanvas id=- size=1120x770 pos=(0,0,0) scale=(1,1) opacity=1 anchor=0x0 blend=0 flags=0x3 visual=-
+  XuiGroup id=group size=300x200 pos=(10,20,0) scale=(1,1) opacity=0.5 anchor=0x0 blend=0 flags=0x1703 visual=-
+    XuiFigure id=- size=100x50 pos=(1,2,0) scale=(1,1) opacity=1 anchor=0xf blend=5 flags=0x3 visual=-
+    XuiImage id=- size=60x30 pos=(0,0,0) scale=(1,1) opacity=1 anchor=0x0 blend=0 flags=0x3 visual=-
+  XuiButton id=control size=60x30 pos=(0,0,0) scale=(1,1) opacity=1 anchor=0x0 blend=0 flags=0x2 visual=BG_animation

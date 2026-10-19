@@ -1,0 +1,14 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+left before the snap's first tick: handled true
+play 20..20
+left: handled true
+play 30..40
+current Some(0) shown ["Tab1"]
+left at tab 0 without Wrap: handled false
+right while animating: handled true
+right after the end frame: handled true
+play 10..20
+current Some(1) shown ["Tab2"]

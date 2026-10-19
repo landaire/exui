@@ -1,0 +1,21 @@
+---
+source: crates/exui-runtime/src/text/tests.rs
+expression: "[load(build_xtt(&sfnt, 0x0002_0000)), load(wrong_size),\nload(b\"xttf\".to_vec()), load(tables),\nFontLibrary::new().register(\"a;b\", Typeface\n{\n    primary: LoadedFont::load(FontData::Owned(sfnt)).expect(\"font loads\"),\n    fallback: None, line_height_reduction: 0.0\n}, false).map_err(|error| format!(\"{error}\")),]"
+---
+[
+    Err(
+        "xtt version 0x00020000 is not 0x00010000",
+    ),
+    Err(
+        "xtt header records file size 891 but the file has 892 bytes",
+    ),
+    Err(
+        "xtt file of 4 bytes is shorter than its 0x118-byte header",
+    ),
+    Err(
+        "sfnt table count 2 is outside 3..=32",
+    ),
+    Err(
+        "typeface name contains ';'",
+    ),
+]

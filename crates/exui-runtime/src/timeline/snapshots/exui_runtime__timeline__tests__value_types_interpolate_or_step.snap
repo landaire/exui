@@ -1,0 +1,33 @@
+---
+source: crates/exui-runtime/src/timeline/tests.rs
+expression: "run(&mut host, owner, &[0.0, 16.666_666, 16.666_666, 16.666_666, 16.666_666])"
+---
+tick 0
+  set box.Position=(0.000,0.000,0.000)
+  set box.Anchor=1
+  set box.Opacity=0.0000
+  send 0x14 box
+  bubble 0x14 owner
+  pos 0.000 stopped false
+tick 16.666666
+  set box.Position=(5.681,-2.273,0.455)
+  set box.Anchor=1
+  set box.Opacity=0.0568
+  pos 16.667 stopped false
+tick 16.666666
+  set box.Position=(23.483,-9.393,1.879)
+  set box.Anchor=1
+  set box.Opacity=0.2348
+  pos 33.333 stopped false
+tick 16.666666
+  set box.Position=(54.544,-21.818,4.364)
+  set box.Anchor=1
+  set box.Opacity=0.5454
+  pos 50.000 stopped false
+tick 16.666666
+  set box.Position=(100.000,-40.000,8.000)
+  set box.Anchor=9
+  set box.Opacity=1.0000
+  send 0xf box
+  bubble 0xf owner
+  pos 66.667 stopped false

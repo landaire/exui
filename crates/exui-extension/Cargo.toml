@@ -1,0 +1,15 @@
+[package]
+name = "exui-extension"
+version.workspace = true
+edition.workspace = true
+description = "XUI extension descriptor format"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+thiserror = { workspace = true }
+winnow = { workspace = true, features = ["binary"] }
+
+[dev-dependencies]
+insta = { workspace = true }

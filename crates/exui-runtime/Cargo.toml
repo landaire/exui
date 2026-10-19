@@ -1,0 +1,22 @@
+[package]
+name = "exui-runtime"
+version.workspace = true
+edition.workspace = true
+description = "XUI scene runtime"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+exui-core = { workspace = true }
+exui-extension = { workspace = true }
+libm = "0.2"
+thiserror = { workspace = true }
+winnow = { workspace = true, features = ["binary"] }
+xbox360-draw = { git = "https://github.com/landaire/rust-xbox360", rev = "f7021792eeeb35c10c95a7431bce78111b134fc2" }
+xbox360-image = { git = "https://github.com/landaire/rust-xbox360", rev = "f7021792eeeb35c10c95a7431bce78111b134fc2" }
+zune-inflate = { version = "0.2", default-features = false, features = ["zlib"] }
+
+[dev-dependencies]
+insta = { workspace = true }
+xbox360-raster = { git = "https://github.com/landaire/rust-xbox360", rev = "f7021792eeeb35c10c95a7431bce78111b134fc2" }

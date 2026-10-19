@@ -1,0 +1,22 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+A handled true
+ok: 0x24 key 0x5800
+ok: 0x7e5 press
+scene: 0xe pressing from ok repeat false
+play 4..8
+B while pressed handled true
+ok: 0x24 key 0x5801
+down while pressed handled true
+ok: 0x24 key 0x5811
+frame 4
+ok: 0xf end of ?
+scene: 0xe press from ok
+play 2..3
+scene: 0xf end of ?
+frame 5
+ok: 0xf end of ?
+scene: 0xf end of ?
+visual timeline start 2 end 3 position 33.333

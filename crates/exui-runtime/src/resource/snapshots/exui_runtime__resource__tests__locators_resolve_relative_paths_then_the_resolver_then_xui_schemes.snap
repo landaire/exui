@@ -1,0 +1,17 @@
+---
+source: crates/exui-runtime/src/resource/tests.rs
+expression: "lines.join(\"\\n\") + \"\\nno base: \" + &without_base"
+---
+section://1A,skin#skin.xur -> section 1A skin skin.xur
+SECTION://1a,skin#Upper.png -> section 1A skin Upper.png
+section://1A,toolongname#skin.xur -> error section locator section://1A,toolongname#skin.xur is not `section://<module>,<name>#<file>`
+section://zz,skin#skin.xur -> error section locator section://zz,skin#skin.xur is not `section://<module>,<name>#<file>`
+section://100000000,skin#skin.xur -> error section locator section://100000000,skin#skin.xur is not `section://<module>,<name>#<file>`
+file://media:/font.xtt -> file media:/font.xtt
+memory://1,2#x -> error locator memory://1,2#x uses the unsupported scheme Memory
+http://example/x.png -> error locator http://example/x.png has an unknown scheme
+alias://button.png -> section 0 shared button.png
+ALIAS://Button.png -> section 0 shared Button.png
+icon.png -> section 92000000 scenes icon.png
+sub\Image.PNG -> section 92000000 scenes sub\Image.PNG
+no base: error relative path scene.xur has no base path to resolve against

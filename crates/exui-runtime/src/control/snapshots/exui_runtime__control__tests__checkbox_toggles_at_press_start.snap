@@ -1,0 +1,16 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+after key down value 1
+scene: 0xe pressing from check repeat false
+play 4..6
+after animation value 1
+scene: 0xe press from check
+play 4..6
+scene: 0xf end of ?
+scene: 0xf end of ?
+scene: 0xf end of ?
+scene: 0xf end of ?
+scene: 0xf end of ?
+scene: 0xf end of ?

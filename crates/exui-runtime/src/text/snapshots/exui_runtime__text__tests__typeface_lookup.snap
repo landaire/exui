@@ -1,0 +1,30 @@
+---
+source: crates/exui-runtime/src/text/tests.rs
+expression: "[measure(Some(&empty), 12.0), measure(Some(&unknown), 12.0),\nmeasure(None, 0.5), measure(None, 400.0), measure(None, 150.0),]"
+---
+[
+    Ok(
+        TextExtent {
+            width: 7.0,
+            height: 18.0,
+        },
+    ),
+    Err(
+        "typeface \"Unknown\" is not registered",
+    ),
+    Err(
+        "point size 0.5 is below 1",
+    ),
+    Ok(
+        TextExtent {
+            width: 80.0,
+            height: 220.0,
+        },
+    ),
+    Ok(
+        TextExtent {
+            width: 80.0,
+            height: 220.0,
+        },
+    ),
+]

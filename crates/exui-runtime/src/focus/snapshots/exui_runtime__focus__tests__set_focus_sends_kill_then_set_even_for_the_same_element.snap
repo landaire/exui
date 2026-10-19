@@ -1,0 +1,19 @@
+---
+source: crates/exui-runtime/src/focus/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+focus a
+a: 0xc set focus (previous none)
+scene: 0xe set focus from a
+scene: 0xe code 4 from scene
+focus a again
+a: 0xd kill focus (new a)
+scene: 0xe kill focus from a
+a: 0xc set focus (previous a)
+scene: 0xe set focus from a
+focus c
+a: 0xd kill focus (new c)
+scene: 0xe kill focus from a
+c: 0xc set focus (previous a)
+scene: 0xe set focus from c
+scene: 0xe code 4 from scene

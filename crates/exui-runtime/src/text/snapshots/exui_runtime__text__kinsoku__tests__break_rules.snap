@@ -1,0 +1,54 @@
+---
+source: crates/exui-runtime/src/text/kinsoku.rs
+expression: cases
+---
+[
+    (
+        "space after word",
+        false,
+    ),
+    (
+        "letter after letter",
+        false,
+    ),
+    (
+        "letter after space",
+        true,
+    ),
+    (
+        "comma before space",
+        false,
+    ),
+    (
+        "digit after decimal point",
+        false,
+    ),
+    (
+        "letter after open paren",
+        false,
+    ),
+    (
+        "close paren after letter",
+        false,
+    ),
+    (
+        "kanji after kanji",
+        true,
+    ),
+    (
+        "ideographic full stop after kanji",
+        false,
+    ),
+    (
+        "hangul after hangul, center",
+        false,
+    ),
+    (
+        "hangul after space, center",
+        true,
+    ),
+    (
+        "hangul after hangul, left",
+        true,
+    ),
+]

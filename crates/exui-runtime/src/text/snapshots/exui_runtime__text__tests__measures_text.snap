@@ -1,0 +1,34 @@
+---
+source: crates/exui-runtime/src/text/tests.rs
+expression: extents
+---
+[
+    (
+        "0x0",
+        TextExtent {
+            width: 36.0,
+            height: 54.0,
+        },
+    ),
+    (
+        "0x20",
+        TextExtent {
+            width: 32.0,
+            height: 18.0,
+        },
+    ),
+    (
+        "0x10",
+        TextExtent {
+            width: 100.0,
+            height: 18.0,
+        },
+    ),
+    (
+        "0x2000",
+        TextExtent {
+            width: 36.0,
+            height: 54.0,
+        },
+    ),
+]

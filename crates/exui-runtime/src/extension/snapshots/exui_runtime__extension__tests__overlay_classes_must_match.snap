@@ -1,0 +1,5 @@
+---
+source: crates/exui-runtime/src/extension/tests.rs
+expression: "format!(\"{:?}\", core::error::Error::source(&error))"
+---
+Some(SharedPatchError(Extension { name: "sample", patch: PatchIndex(0), source: ClassMismatch { id: Some("Main"), target: ClassId(4), overlay: ClassId(14) } }))

@@ -1,0 +1,36 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+press go: focus back first input false attached true
+first: 0xe pressing from go repeat false
+first: 0xe press from go
+first: 0xe kill focus from go
+second: 0xc set focus (previous go)
+second: 0xd kill focus (new back)
+second: 0xe set focus from back
+second: 0xe code 4 from second
+first: 0x1d start From Remove
+play 0..6
+second: 0x1d start To Keep
+second: 0x1e ended To Keep
+key during transition: focus back first input false attached true
+after TransFrom: focus back first input true attached false
+first: 0xf end of first
+first: 0x1e ended From Remove
+first: 0xf end of first
+press back: focus go first input true attached true
+second: 0xe pressing from back repeat false
+second: 0xe press from back
+first: 0x1a back from second
+second: 0xe kill focus from back
+first: 0xc set focus (previous back)
+first: 0xd kill focus (new go)
+first: 0xe set focus from go
+second: 0x1d start BackFrom Destroy
+second: 0x1e ended BackFrom Destroy
+first: 0x1d start BackTo Keep
+play 10..14
+after TransBackTo: focus go first input true attached true
+first: 0xf end of first
+first: 0x1e ended BackTo Keep

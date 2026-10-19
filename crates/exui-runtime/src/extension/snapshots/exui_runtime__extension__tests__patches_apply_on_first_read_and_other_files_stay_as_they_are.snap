@@ -1,0 +1,24 @@
+---
+source: crates/exui-runtime/src/extension/tests.rs
+expression: dump
+---
+XuiCanvas
+  XuiScene
+    Id = [String(Some("Main"))]
+    Width = [Float(100.0)]
+    Height = [Float(50.0)]
+    frame Some("Start") at 0
+    frame Some("Early") at 3
+    frame Some("Mid") at 5
+    frame Some("Extra") at 20
+    frame Some("Held") at 25
+    timeline Some("A") [(0, 0, Float(0.0)), (10, 1, Float(1.0)), (20, 1, Float(0.5)), (25, 0, Float(0.5))]
+    XuiScene
+      Id = [String(Some("A"))]
+    XuiScene
+      Id = [String(Some("C"))]
+string 0: First, replaced
+string 1: Second
+string 2: Third, added
+ext://sample/overlay.xur: 251 bytes
+ext://other: extension other is not enabled

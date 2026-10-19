@@ -1,0 +1,153 @@
+---
+source: crates/exui-runtime/src/scene/image.rs
+expression: layouts
+---
+[
+    (
+        0,
+        Some(
+            ImageLayout {
+                rect: [
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                ],
+                origin: [
+                    0.0,
+                    0.0,
+                ],
+                extent: [
+                    50.0,
+                    50.0,
+                ],
+            },
+        ),
+    ),
+    (
+        1,
+        Some(
+            ImageLayout {
+                rect: [
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                ],
+                origin: [
+                    0.0,
+                    0.0,
+                ],
+                extent: [
+                    50.0,
+                    50.0,
+                ],
+            },
+        ),
+    ),
+    (
+        2,
+        Some(
+            ImageLayout {
+                rect: [
+                    75.0,
+                    25.0,
+                    125.0,
+                    75.0,
+                ],
+                origin: [
+                    75.0,
+                    25.0,
+                ],
+                extent: [
+                    50.0,
+                    50.0,
+                ],
+            },
+        ),
+    ),
+    (
+        4,
+        Some(
+            ImageLayout {
+                rect: [
+                    0.0,
+                    0.0,
+                    200.0,
+                    100.0,
+                ],
+                origin: [
+                    0.0,
+                    0.0,
+                ],
+                extent: [
+                    200.0,
+                    100.0,
+                ],
+            },
+        ),
+    ),
+    (
+        8,
+        Some(
+            ImageLayout {
+                rect: [
+                    0.0,
+                    0.0,
+                    100.0,
+                    100.0,
+                ],
+                origin: [
+                    0.0,
+                    0.0,
+                ],
+                extent: [
+                    100.0,
+                    100.0,
+                ],
+            },
+        ),
+    ),
+    (
+        16,
+        Some(
+            ImageLayout {
+                rect: [
+                    50.0,
+                    0.0,
+                    150.0,
+                    100.0,
+                ],
+                origin: [
+                    50.0,
+                    0.0,
+                ],
+                extent: [
+                    100.0,
+                    100.0,
+                ],
+            },
+        ),
+    ),
+    (
+        3,
+        Some(
+            ImageLayout {
+                rect: [
+                    0.0,
+                    0.0,
+                    50.0,
+                    50.0,
+                ],
+                origin: [
+                    0.0,
+                    0.0,
+                ],
+                extent: [
+                    50.0,
+                    50.0,
+                ],
+            },
+        ),
+    ),
+]

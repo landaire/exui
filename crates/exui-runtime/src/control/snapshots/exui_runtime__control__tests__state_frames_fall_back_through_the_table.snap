@@ -1,0 +1,9 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+focus a (disabled)
+play 2..3
+focus b
+play 0..1
+play 2..3

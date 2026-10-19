@@ -1,0 +1,20 @@
+---
+source: crates/exui-runtime/src/timeline/tests.rs
+expression: "run(&mut host, owner, &[0.0, 16.666_666, 16.666_666, 16.666_666])"
+---
+tick 0
+  set box.TextColor=00ff0000
+  send 0x14 box
+  bubble 0x14 owner
+  pos 0.000 stopped false
+tick 16.666666
+  set box.TextColor=55aa0055
+  pos 16.667 stopped false
+tick 16.666666
+  set box.TextColor=aa5500aa
+  pos 33.333 stopped false
+tick 16.666666
+  set box.TextColor=ff0000ff
+  send 0xf box
+  bubble 0xf owner
+  pos 50.000 stopped false

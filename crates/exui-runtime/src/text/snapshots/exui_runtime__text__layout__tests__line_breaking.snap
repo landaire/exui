@@ -1,0 +1,95 @@
+---
+source: crates/exui-runtime/src/text/layout.rs
+expression: cases
+---
+[
+    (
+        "word wrap",
+        [
+            "x=0 y=0 [the quick]",
+            "x=0 y=20 [brown fox]",
+        ],
+    ),
+    (
+        "trailing spaces trimmed for alignment",
+        [
+            "x=45 y=0 [ab   cd]",
+        ],
+    ),
+    (
+        "single line keeps trailing spaces",
+        [
+            "x=65 y=0 [ab   ]",
+        ],
+    ),
+    (
+        "hard breaks",
+        [
+            "x=0 y=0 [one]",
+            "x=0 y=20 [two]",
+            "x=0 y=40 [three]",
+            "x=0 y=60 [four]",
+        ],
+    ),
+    (
+        "long word broken at fitted length",
+        [
+            "x=0 y=0 [abcde]",
+            "x=0 y=20 [fghij]",
+            "x=0 y=40 [klmn]",
+        ],
+    ),
+    (
+        "break after hyphen class",
+        [
+            "x=0 y=0 [abc)]",
+            "x=0 y=20 [defghi]",
+        ],
+    ),
+    (
+        "no wrap ellipsis",
+        [
+            "x=0 y=0 [the quick ...]",
+        ],
+    ),
+    (
+        "no wrap without ellipsis",
+        [
+            "x=0 y=0 [the quick b]",
+            "x=0 y=20 [second]",
+        ],
+    ),
+    (
+        "right no wrap clips start",
+        [
+            "x=0 y=0 [k brown fox]",
+        ],
+    ),
+    (
+        "center",
+        [
+            "x=28 y=0 [ab cd]",
+        ],
+    ),
+    (
+        "vertical center",
+        [
+            "x=0 y=30 [ab]",
+            "x=0 y=50 [cd]",
+        ],
+    ),
+    (
+        "stops below rect",
+        [
+            "x=0 y=0 [aa]",
+            "x=0 y=20 [bb]",
+        ],
+    ),
+    (
+        "negative pitch adjust",
+        [
+            "PlacedLine { start: 0, end: 2, x: 0, y: 15, ellipsis: false }",
+            "PlacedLine { start: 3, end: 5, x: 0, y: 15, ellipsis: false }",
+        ],
+    ),
+]

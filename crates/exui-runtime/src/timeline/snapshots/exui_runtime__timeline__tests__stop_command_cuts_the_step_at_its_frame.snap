@@ -1,0 +1,14 @@
+---
+source: crates/exui-runtime/src/timeline/tests.rs
+expression: "run(&mut host, owner, &[0.0, 1000.0, 1000.0])"
+---
+tick 0
+  set box.Opacity=0.0000
+  send 0x14 box
+  bubble 0x14 owner
+  pos 0.000 stopped false
+tick 1000
+  set box.Opacity=1.0000
+  pos 166.667 stopped true
+tick 1000
+  pos 166.667 stopped true

@@ -1,0 +1,7 @@
+---
+source: crates/exui-runtime/src/extension/tests.rs
+expression: "errors.join(\"\\n\")"
+---
+archive loaded as extension other describes extension sample
+extension sample is loaded twice
+archive of extension sample is not a XUIZ archive

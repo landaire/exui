@@ -1,0 +1,11 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+XuiControl with prefix: Some(true)
+XuiButton with prefix: Some(false)
+XuiNavButton with prefix: None
+nav: visual XuiButton prefix inside None
+label: visual XuiControl prefix inside Some("p")
+inner: no visual, prefix seen None
+after freeing p: XuiControl found false

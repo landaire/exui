@@ -1,0 +1,8 @@
+---
+source: crates/exui-runtime/src/text/tests.rs
+expression: "[describe_font(&plain), describe_font(&entry.primary)]"
+---
+[
+    "upem 1000 ascender 800 line height 1100 glyphs [Some((GlyphId(2), 400)), Some((GlyphId(3), 800)), Some((GlyphId(4), 700)), Some((GlyphId(1), 300)), None]",
+    "upem 1000 ascender 800 line height 1100 glyphs [Some((GlyphId(2), 400)), Some((GlyphId(3), 800)), Some((GlyphId(4), 700)), Some((GlyphId(1), 300)), None]",
+]

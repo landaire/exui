@@ -1,0 +1,14 @@
+---
+source: crates/exui-runtime/src/control/tests.rs
+expression: "lines.join(\"\\n\")"
+---
+after init
+play 20..20
+current Some(1) shown ["Tab2"]
+right (2To3 without End frame): handled true
+play 30..-1
+current Some(2) shown ["Tab3"]
+right at the last tab without Wrap: handled false
+current Some(2) shown ["Tab3"]
+left while 2To3 never ends: handled true
+current Some(2) shown ["Tab3"]
