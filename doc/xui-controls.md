@@ -93,7 +93,7 @@ Directions: "self" = sent to the element, "bubble" = `XuiBubbleMessage`, "tree" 
 | 0x1c | Set back scene | +0 new, +4 out old | `0x922604a0` | partial |
 | 0x1d | Start scene transition | +0 kind (1 TransTo, 2 TransFrom, 3 TransBackTo, 4 TransBackFrom), +4 out deferred, +8 in/out action (0 keep, 1 remove, 2 destroy) | `XuiScene_StartTransition` 0x92152730 to the scene | complete |
 | 0x1e | Scene transition ended | +0 kind, +4 0, +8 in/out action | `XuiScene_OnTransitionEnd` 0x92151438 to the scene | complete |
-| 0x1f | Scene transition control (sets scene flag 0x4) | none | `0x9214f518`, tree | partial |
+| 0x1f | Re-localize after a locale change. XuiScene and XuiCanvas (0x9215b560) re-localize themselves when they hold a load path (0x9214a9f0); XuiScene sets flag 0x4, which makes `XuiSceneNavigateBack` broadcast 0x1f to the target (0x921505c8) | none | `0x9214f518`, tree | complete |
 | 0x20 | Child removed | +0 child | `0x92164190` to parent | partial |
 | 0x21 | Is my visual | +0 element, +4 out bool | Control/Image answer | partial |
 | 0x22 | Get skin prefix (bubbled) | +0 out string | `0x9214f2a0`; answered by XuiVisual (+4, always), XuiCanvas (+8, always), XuiScene (+0x1c, only when set) | complete |
@@ -1230,7 +1230,7 @@ Runtime (`control/image.rs`): a scene path loads on 0x29 and, for shown images, 
 ### 8. Other classes checked
 
 - XuiGroup (0x9215cc68): no binding. 0xb/0xc focus through a tab-stop query, 0x10 re-anchors children.
-- XuiCanvas (0x9215ce58): base path and skin prefix holder (section 2); 0x1f as XuiScene.
+- XuiCanvas (0x9215ce58): base path and skin prefix holder (section 2); 0x1f: handled, re-localizes itself when it holds a load path (no flag).
 - XuiNineGrid (0x921635f8): no binding. Loads TextureFileName itself (`0x92160700`, resolved by `XuiResolveElementPath` relative to itself).
 
 ### Nuances

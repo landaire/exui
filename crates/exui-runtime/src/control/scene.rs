@@ -35,8 +35,9 @@ pub struct SceneState {
     pub own_transition: bool,
     /// Flag bit 1: XuiTransition wrapper running.
     pub wrapper_transition: bool,
-    /// Flag bit 2, set by 0x1f.
-    pub transition_control: bool,
+    /// Flag bit 2: the scene received 0x1f; navigating back from it
+    /// re-localizes the target (0x921505C8).
+    pub relocalized: bool,
     /// Flag bit 5, set on destroy.
     pub destroying: bool,
     /// Pending transition kind and action (+0x40, +0x44).
@@ -58,7 +59,7 @@ impl SceneState {
             partner: None,
             own_transition: false,
             wrapper_transition: false,
-            transition_control: false,
+            relocalized: false,
             destroying: false,
             pending: None,
             src_index: 0,
@@ -95,6 +96,14 @@ pub(super) fn on_message(cx: &mut Context<'_, '_>, element: ElementId, message: 
         Body::Destroy => {
             if let Some(scene) = cx.scene_state(element) {
                 scene.destroying = true;
+            }
+        }
+        // `XuiScene_OnMessage` 0x92169720, through 0x9215B560.
+        Body::Relocalize => {
+            message.handled = true;
+            cx.relocalize_own(element);
+            if let Some(scene) = cx.scene_state(element) {
+                scene.relocalized = true;
             }
         }
         Body::SetFocus { previous, user } => {

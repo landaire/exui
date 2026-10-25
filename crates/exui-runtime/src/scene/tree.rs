@@ -3,6 +3,7 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
+use core::num::NonZeroU32;
 use core::ptr;
 
 use exui_core::schema::ClassDef;
@@ -41,6 +42,13 @@ pub struct ElementId {
 /// Handle of a base path registered with [`ElementTree::add_base_path`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BasePathId(u32);
+
+/// Position of an element in the file it was loaded from: children are
+/// numbered from 1 after their own subtrees, the root last
+/// (`XuiInstantiateObjectTree` 0x921523F8). Localized scene string tables
+/// key text by it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LoadIndex(pub NonZeroU32);
 
 /// The element flag word (element +0xf0).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -270,6 +278,11 @@ pub struct Element {
     pub(crate) traits: ClassTraits,
     pub(crate) id: Option<Box<[u16]>>,
     pub(crate) base_path: Option<BasePathId>,
+    /// The file a loaded root or created scene came from (scene +0x18,
+    /// canvas +4: messages 0x18 and 0x19).
+    pub(crate) load_path: Option<BasePathId>,
+    /// XuiElement +8: position of the element in its file.
+    pub(crate) load_index: Option<LoadIndex>,
     pub(crate) links: Links,
 
     pub(crate) size: Size,
@@ -303,6 +316,8 @@ impl Element {
             traits,
             id: None,
             base_path: None,
+            load_path: None,
+            load_index: None,
             links: Links::default(),
             size: Size::default(),
             opacity: 1.0,
@@ -621,6 +636,31 @@ impl ElementTree {
         self.element_mut(id)?.base_path = base;
 
         Ok(())
+    }
+
+    pub fn load_path(&self, id: ElementId) -> Option<BasePathId> {
+        self.get(id)?.load_path
+    }
+
+    pub fn set_load_path(
+        &mut self,
+        id: ElementId,
+        path: Option<BasePathId>,
+    ) -> Result<(), TreeError> {
+        self.element_mut(id)?.load_path = path;
+
+        Ok(())
+    }
+
+    pub fn load_index(&self, id: ElementId) -> Option<LoadIndex> {
+        self.get(id)?.load_index
+    }
+
+    pub(crate) fn set_load_index(&mut self, id: ElementId, index: Option<LoadIndex>) {
+        // Indexes are assigned to elements that were just created.
+        if let Some(element) = self.get_mut(id) {
+            element.load_index = index;
+        }
     }
 
     /// Size changes since the last call, in occurrence order.

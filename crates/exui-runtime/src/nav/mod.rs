@@ -1,6 +1,8 @@
 //! Scene creation, transitions and scene navigation
 //! (doc/xui-timelines.md section 7).
 
+mod localize;
+
 use alloc::format;
 use alloc::rc::Rc;
 use alloc::string::String;
@@ -24,6 +26,7 @@ use crate::message::Message;
 use crate::message::ResourceMask;
 use crate::message::TransitionAction;
 use crate::message::TransitionKind;
+use crate::resource;
 use crate::scene;
 use crate::scene::BasePathId;
 use crate::scene::ElementId;
@@ -104,10 +107,13 @@ impl Context<'_, '_> {
         prepare: impl FnOnce(&mut Self, ElementId),
     ) -> Result<ElementId, NavError> {
         let base_units: Option<Vec<u16>> = base.map(|base| self.tree.base_path_units(base).into());
-        let bytes = self.resources.read_path(path, base_units.as_deref())?;
+        let full = resource::join(path, base_units.as_deref())?;
+        let bytes = self.resources.read_path(&full, None)?;
         let document = Document::parse(&bytes, self.registry)?;
 
         let root = self.instantiate_document(&document, base)?;
+        let load_path = self.tree.add_base_path(&full);
+        self.localize_loaded(root, load_path);
         let children: Vec<ElementId> = self.tree.children(root).collect();
         let Some(scene) = children
             .into_iter()
@@ -122,6 +128,9 @@ impl Context<'_, '_> {
         self.unlink(scene);
         self.destroy(root);
         self.runtime.load_depth -= 1;
+
+        // `XuiElementSetBasePath` 0x9214F350.
+        let _ = self.tree.set_load_path(scene, Some(load_path));
 
         prepare(self, scene);
         self.init_element_tree(scene);
@@ -138,10 +147,13 @@ impl Context<'_, '_> {
         path: &[u16],
     ) -> Result<ElementId, LoadError> {
         let base_units: Option<Vec<u16>> = base.map(|base| self.tree.base_path_units(base).into());
-        let bytes = self.resources.read_path(path, base_units.as_deref())?;
+        let full = resource::join(path, base_units.as_deref())?;
+        let bytes = self.resources.read_path(&full, None)?;
         let document = Document::parse(&bytes, self.registry)?;
 
         let root = self.instantiate_document(&document, base)?;
+        let load_path = self.tree.add_base_path(&full);
+        self.localize_loaded(root, load_path);
         self.init_element_tree(root);
 
         Ok(root)
@@ -322,11 +334,7 @@ impl Context<'_, '_> {
             self.broadcast(target, &Body::CreateResources);
         }
 
-        // [INFERENCE] 0x921505c8 only clears the transition control bit
-        // here; its 0x18 query and 0x9214f518 call are not modeled.
-        if let Some(state) = self.scene_state(current) {
-            state.transition_control = false;
-        }
+        self.relocalize_back_target(current, target);
 
         self.send_body(target, Body::NavigatedBack { from: current });
         if let Some(user) = user {

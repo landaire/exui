@@ -1,0 +1,9 @@
+---
+source: crates/exui-runtime/src/nav/localize/fixed.rs
+expression: "text.join(\"\\n\")"
+---
+11520000457763672 e2
+10000000000000001 e0
+33333333333333331 e0
+123456789 e6
+49406564584124654 e-323

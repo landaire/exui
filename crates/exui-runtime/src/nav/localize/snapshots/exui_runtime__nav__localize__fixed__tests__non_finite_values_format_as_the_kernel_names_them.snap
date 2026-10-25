@@ -1,0 +1,7 @@
+---
+source: crates/exui-runtime/src/nav/localize/fixed.rs
+expression: "text.join(\"\\n\")"
+---
+1.#INF00
+-1.#INF00
+1.#QNAN0

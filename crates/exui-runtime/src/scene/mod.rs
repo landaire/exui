@@ -42,6 +42,7 @@ pub use self::tree::Element;
 pub use self::tree::ElementFlags;
 pub use self::tree::ElementId;
 pub use self::tree::ElementTree;
+pub use self::tree::LoadIndex;
 pub use self::tree::Size;
 pub use self::tree::SizeChange;
 pub use self::tree::XuiBlendMode;

@@ -121,6 +121,11 @@ pub(super) fn on_canvas(cx: &mut Context<'_, '_>, element: ElementId, message: &
             }
             message.handled = true;
         }
+        // `XuiCanvas_OnMessage` 0x9215CE58, through 0x9215B560.
+        Body::Relocalize => {
+            message.handled = true;
+            cx.relocalize_own(element);
+        }
         _ => {}
     }
 }

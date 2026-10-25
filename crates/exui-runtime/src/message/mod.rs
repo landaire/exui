@@ -64,6 +64,7 @@ pub enum BuiltinMessage {
     SetBackScene = 0x1c,
     StartTransition = 0x1d,
     TransitionEnded = 0x1e,
+    Relocalize = 0x1f,
     ChildRemoved = 0x20,
     GetSkinPrefix = 0x22,
     SetSkinPrefix = 0x23,
@@ -485,6 +486,8 @@ pub enum Body {
         kind: TransitionKind,
         action: TransitionAction,
     },
+    /// Broadcast after a locale change (`0x9214F518`).
+    Relocalize,
     ChildRemoved {
         child: ElementId,
     },
@@ -746,6 +749,7 @@ impl Body {
             Self::SetBackScene { .. } => BuiltinMessage::SetBackScene,
             Self::StartTransition { .. } => BuiltinMessage::StartTransition,
             Self::TransitionEnded { .. } => BuiltinMessage::TransitionEnded,
+            Self::Relocalize => BuiltinMessage::Relocalize,
             Self::ChildRemoved { .. } => BuiltinMessage::ChildRemoved,
             Self::GetSkinPrefix { .. } => BuiltinMessage::GetSkinPrefix,
             Self::SetSkinPrefix { .. } => BuiltinMessage::SetSkinPrefix,

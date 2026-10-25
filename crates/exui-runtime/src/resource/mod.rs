@@ -35,6 +35,7 @@ pub use self::locator::MemoryBlockId;
 pub(crate) use self::locator::archive_key;
 pub use self::locator::extension_base_path;
 pub use self::locator::is_absolute;
+pub(crate) use self::locator::join;
 pub use self::locator::section_base_path;
 pub use self::locator::strip_prefix_ignore_case;
 pub use self::object::TextureObject;

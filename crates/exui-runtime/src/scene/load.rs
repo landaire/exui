@@ -1,6 +1,7 @@
 //! Element creation from a parsed XUR document.
 
 use alloc::vec::Vec;
+use core::num::NonZeroU32;
 
 use exui_core::Document;
 use exui_core::Registry;
@@ -15,6 +16,7 @@ use crate::scene::BasePathId;
 use crate::scene::ElementId;
 use crate::scene::ElementTree;
 use crate::scene::LoadError;
+use crate::scene::LoadIndex;
 use crate::scene::PropValue;
 use crate::scene::PropertyError;
 
@@ -23,8 +25,9 @@ use crate::scene::PropertyError;
 /// properties in file order and is then attached to its parent (which
 /// captures its design layout), parents before children [INFERENCE: the
 /// instantiation pass was not traced; this order keeps every capture
-/// against the parent's loaded size]. `visit` sees every element after its
-/// whole subtree exists, parents first. Every element gets `base`.
+/// against the parent's loaded size]. Every element gets its
+/// [`LoadIndex`]. `visit` sees every element after its whole subtree
+/// exists, parents first. Every element gets `base`.
 pub fn instantiate<'d, 'a>(
     tree: &mut ElementTree,
     registry: &Registry,
@@ -40,6 +43,8 @@ pub fn instantiate<'d, 'a>(
         let _ = tree.destroy(root);
         return Err(error);
     }
+
+    number_elements(tree, root);
 
     for (element, object) in created {
         visit(tree, element, object);
@@ -72,6 +77,27 @@ fn create_descendants<'d, 'a>(
     }
 
     Ok(())
+}
+
+/// Numbers the subtree of `root` like `XuiInstantiateObjectTree`
+/// 0x921523F8: each child after its own subtree, from 1, and the root last
+/// (`XuiCreateFromLoadedObject` 0x92152B90).
+fn number_elements(tree: &mut ElementTree, root: ElementId) {
+    let mut next = NonZeroU32::MIN;
+    // Each entry is an element and whether its children are numbered.
+    let mut pending = alloc::vec![(root, false)];
+    while let Some((element, children_done)) = pending.pop() {
+        if !children_done {
+            pending.push((element, true));
+            let start = pending.len();
+            pending.extend(tree.children(element).map(|child| (child, false)));
+            pending[start..].reverse();
+            continue;
+        }
+
+        tree.set_load_index(element, Some(LoadIndex(next)));
+        next = next.saturating_add(1);
+    }
 }
 
 /// Queues the children of `object` so that the first pops first.
