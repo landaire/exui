@@ -89,15 +89,31 @@ pub(crate) fn next_line(
     max_width: i32,
     advance: &mut dyn FnMut(u16) -> i32,
 ) -> Line {
+    next_line_within(text, start, text.len(), style, max_width, advance)
+}
+
+/// `next_line` with the character limit of `XuiFont_NextLine`: a line
+/// stops at code unit `limit`, which must not be below `start`.
+/// Right-aligned clipping keeps at most `limit - start` characters of the
+/// end of the line. The measurers stop at the limit, so a line ending
+/// there returns no next line.
+fn next_line_within(
+    text: &[u16],
+    start: usize,
+    limit: usize,
+    style: TextStyle,
+    max_width: i32,
+    advance: &mut dyn FnMut(u16) -> i32,
+) -> Line {
     let at = |index: usize| text.get(index).copied().unwrap_or(0);
 
     let mut line = if style.contains(TextStyle::ALIGN_RIGHT)
         && style.contains(TextStyle::NO_WRAP)
         && !style.contains(TextStyle::ELLIPSIS)
     {
-        clip_start(text, start, max_width, advance)
+        clip_start(text, start, limit, max_width, advance)
     } else {
-        wrap(text, start, style, max_width, advance)
+        wrap(text, start, limit, style, max_width, advance)
     };
 
     if style.contains(TextStyle::SINGLE_LINE) {
@@ -211,16 +227,18 @@ pub(crate) fn line_starts(
     }
 }
 
-/// `XuiMeasureText`: widest line and line count times pitch.
-pub(crate) fn measure(
+/// `XuiMeasureText` of the first `limit` code units: no line passes the
+/// limit and no line starts at or after it.
+pub(crate) fn measure_within(
     text: &[u16],
+    limit: usize,
     style: TextStyle,
     max_width: i32,
     pitch: LinePitch,
     advance: &mut dyn FnMut(u16) -> i32,
 ) -> Extent {
     if style.contains(TextStyle::MULTI_LINE_MEASURE) {
-        return measure_lines(text, style, max_width, pitch, advance);
+        return measure_lines(text, limit, style, max_width, pitch, advance);
     }
 
     let max_lines = if style.contains(TextStyle::SINGLE_LINE) {
@@ -237,11 +255,11 @@ pub(crate) fn measure(
         let mut count = 0i32;
         let mut position = Some(0);
         while let Some(start) = position {
-            if max_lines.is_some_and(|limit| count >= limit) {
+            if max_lines.is_some_and(|lines| count >= lines) || start >= limit {
                 break;
             }
 
-            let line = next_line(text, start, style, max_width, advance);
+            let line = next_line_within(text, start, limit, style, max_width, advance);
 
             // A truncated line widens the measurement to the full line.
             if line.truncated {
@@ -265,6 +283,7 @@ pub(crate) fn measure(
 /// Multi-line measurer (style 0x2000): every line at `max_width`.
 fn measure_lines(
     text: &[u16],
+    limit: usize,
     style: TextStyle,
     max_width: i32,
     pitch: LinePitch,
@@ -277,7 +296,11 @@ fn measure_lines(
     let mut count = 0i32;
     let mut position = Some(0);
     while let Some(start) = position {
-        let line = next_line(text, start, style, max_width, advance);
+        if start >= limit {
+            break;
+        }
+
+        let line = next_line_within(text, start, limit, style, max_width, advance);
         extent.width = extent.width.max(line.width);
         count += 1;
         position = line.next;
@@ -348,6 +371,7 @@ fn skip_line(text: &[u16], mut index: usize) -> Option<usize> {
 fn clip_start(
     text: &[u16],
     start: usize,
+    limit: usize,
     max_width: i32,
     advance: &mut dyn FnMut(u16) -> i32,
 ) -> Line {
@@ -360,8 +384,9 @@ fn clip_start(
         end += 1;
     }
 
+    let allowed = limit - start;
     let mut first = start;
-    while width > max_width && first < end {
+    while (end - first > allowed || width > max_width) && first < end {
         width = width.wrapping_sub(advance(at(first)));
         first += 1;
     }
@@ -378,6 +403,7 @@ fn clip_start(
 fn wrap(
     text: &[u16],
     start: usize,
+    limit: usize,
     style: TextStyle,
     max_width: i32,
     advance: &mut dyn FnMut(u16) -> i32,
@@ -388,7 +414,7 @@ fn wrap(
 
     let mut end = start;
     let mut width = 0i32;
-    loop {
+    while end < limit {
         let code = at(end);
         if is_line_end(code) {
             break;
@@ -413,7 +439,7 @@ fn wrap(
         next: None,
     };
 
-    if stop == 0 {
+    if stop == 0 || end == limit {
         return line;
     }
 
@@ -513,6 +539,16 @@ mod tests {
 
     fn utf16(text: &str) -> Vec<u16> {
         text.encode_utf16().collect()
+    }
+
+    fn measure(
+        text: &[u16],
+        style: TextStyle,
+        max_width: i32,
+        pitch: LinePitch,
+        advance: &mut dyn FnMut(u16) -> i32,
+    ) -> Extent {
+        measure_within(text, text.len(), style, max_width, pitch, advance)
     }
 
     fn render(text: &str, style: u32, width: i32, height: i32) -> Vec<String> {
@@ -755,5 +791,31 @@ mod tests {
 
         // Two lines of pitch 20 + i32::MAX, which wraps to i32::MIN + 19.
         assert_eq!(extent.height, 38);
+    }
+
+    #[test]
+    fn measurement_stops_at_the_limit() {
+        let pitch = LinePitch {
+            height: 20,
+            adjust: 0,
+        };
+        let text = utf16("abc def\nghi");
+        let measure = |limit: usize, style: u32, width: i32| {
+            let extent = measure_within(&text, limit, TextStyle(style), width, pitch, &mut advance);
+            (extent.width, extent.height)
+        };
+
+        // Lines end at the limit and none starts at or after it.
+        assert_eq!(measure(2, 0, 100), (20, 20));
+        assert_eq!(measure(8, 0, 100), (65, 20));
+        assert_eq!(measure(9, 0, 100), (65, 40));
+        assert_eq!(measure(0, 0, 100), (0, 0));
+        assert_eq!(measure(2, TextStyle::MULTI_LINE_MEASURE, 100), (20, 20));
+        // The second line of a wrap at the space ends at the limit.
+        assert_eq!(measure(6, 0, 30), (30, 40));
+        // Right-aligned clipping keeps the end of the line.
+        let clip = TextStyle::ALIGN_RIGHT | TextStyle::NO_WRAP | TextStyle::SINGLE_LINE;
+        assert_eq!(measure(2, clip, 0), (20, 20));
+        assert_eq!(measure(5, clip, 0), (45, 20));
     }
 }

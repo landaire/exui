@@ -2347,7 +2347,7 @@ InsertText(idx, s, n):           // 0x92169fa0; no bound check on idx
 DeleteText(idx, n):              // 0x9216a100
     if ReadOnly or !Enabled: return
     if idx + n <= len: move buf[idx+n..len] down to idx; BuildDisplayText
-        caret = firstChar + caretRel ; if caret > idx: SetCaretPosition(caret - n)   // unsigned; fails when caret was inside the range
+        caret = firstChar + caretRel ; if caret > idx: SetCaretPosition(caret - n)   // unsigned; when caret < n the position wraps, fails with E_INVALIDARG and the caret stays
         UpdateView
 
 Backspace (0x9216a1d0): if caret != 0 and Enabled: DeleteText(caret-1, 1)
@@ -2383,6 +2383,8 @@ ShiftViewLeft (0x921683f8):  if Enabled: firstChar -= 5 ; caretRel = ReadOnly ? 
 ShiftViewRight (0x92168498): firstChar += 5 ; caretRel = ReadOnly ? 0 : caretRel - 5 ; same, using ScrollRight
 ```
 
+Every caller of MoveLeft, MoveRight, ScrollUp and ScrollDown (key down 0x24 and SetCaretPosition) passes animate = 1, so the shifts always request the scrolling state of their arrow. MoveRight measures in the rect (0, 0, TextWidth, TextHeight). Insert, delete and character input do not run Layout, so the line starts and the 0x2c answers stay those of the last Layout (SetText, 0x9, 0x13, 0x80d).
+
 There is no text-changed notification. No message is sent by insert, delete, backspace or SetText.
 
 #### Layout and view
@@ -2409,6 +2411,8 @@ if Multiline and maxScroll > 0:
 
 Line starts (`XuiEdit_WrapLines` 0x9215ea08): when buffer, `Text` and font exist it frees the old list and calls `XuiFontGetLineStarts` 0x92184048(font, text, -1, style, spacing, 1, rect (0,0,w,h), &count, &starts). That locked wrapper adds the default language flags when `style & 0x3f0000` is 0 and calls `XuiFont_BuildLineStarts` 0x92183cb8: the count comes from the 0x2000 measurer (0x92182f30, every line regardless of the rect height), then `XuiFont_NextLine` runs count times and each start index is stored; a line that does not advance moves on by one character. Otherwise the old list and count stay, also when the text is set to null. The line height is `XuiFontGetLineHeight` 0x92180208: `(u32)ceil(font line height)`. pitch = LineSpacingAdjust + that height, without the clamp of `XuiFont_LinePitch`.
 
+Measure wrapper `0x92183eb8`(font, text, count, style, spacing, rect in/out), used by Layout, UpdateView and MoveRight with the style and spacing read at the last Layout (+0x60, +0x80): a null rect returns E_INVALIDARG. A null or empty text sets right = left and bottom = top. Otherwise the rect is converted to integers (`fctiwz`), the default language flags are added when `style & 0x3f0000` is 0, and `XuiMeasureText` 0x92183be8 runs under the font lock; the integer rect is converted back to floats. `XuiMeasureText` leaves the rect unchanged when the font has no face (+0x14) or the count is 0; else it calls the 0x2000 measurer 0x92182f30 or the measurer 0x92182da0 with width = right - left, maximum lines -1 and the count (negative: no limit), and on success sets right = left + widest line and bottom = top + lines * `XuiFont_LinePitch`. Both measurers pass the count less the characters already measured to `XuiFont_NextLine` as its character limit and stop when none remain or the next character is NUL; an empty text measures no lines. 0x92182da0 fails for a negative width, which leaves the rect unchanged; 0x92182f30 measures no lines for a width below 1. A count of -1 measures the whole text.
+
 `XuiEdit_UpdateView` (0x921626f0):
 
 ```
@@ -2416,7 +2420,7 @@ font = XuiTextPresenterGetFont(Text); if none return
 disp = buf ? buf + capacity : null
 if Caret and !ReadOnly and Enabled:
     caretPos = position(Caret)
-    r = measure(disp, caretRel chars, style, spacing)
+    r = measure(disp, caretRel chars, rect (0,0,0,0))
     caretPos.x = r.right ; setPosition(Caret, caretPos)      // Text position is read but not added
 firstLine = (u32)(i32)pos / pitch                             // trap if pitch == 0
 if Multiline and lineStarts and lineStarts[firstLine] != firstChar: firstChar = lineStarts[firstLine]; BuildDisplayText
@@ -2485,13 +2489,13 @@ With SmoothScroll the velocity is pixels per second (3 lines/s start, +2% per 16
 | Msg | Data | Behavior |
 | --- | --- | --- |
 | 0x9 | none | super; FindVisualChildren; Layout; UpdateView; handled. (broadcast by dash code, e.g. DashApp_ApplyProfileStyle) |
-| 0xe | notify {code, hSource} | code 5 and hSource is an arrow: ready = 1, UpdateScrollArrow, handled. |
+| 0xe | notify {code, hSource} | code 5: handled; when hSource is an arrow: ready = 1, UpdateScrollArrow. |
 | 0x13 (init complete) | u32 | If the control has no visual: send 0x29 to self and to the stored Caret handle (+0x54; still 0 unless an earlier 0x9 or 0x13 ran FindVisualChildren). FindVisualChildren; Layout. Not handled. |
-| 0x24 (key down) | key | Unicode != 0: handled, nothing else. Buffer null: not handled. Direction 1 MoveLeft(1), 2 MoveRight(1), 3 ScrollUp(1), 4 ScrollDown(1): handled when result >= 0, else falls through to XuiControl navigation. VK 0x0c: SetText(null), handled. |
-| 0x25 (key up) | key | Unicode != 0: handled. Buffer null: not handled. Direction 3/4: target snap (above), handled. |
+| 0x24 (key down) | key | Unicode != 0: handled, nothing else. Buffer null: not handled. Direction (`XuiKeyToNavDirection` with argument 1, so keyboard keys always count) 1 MoveLeft(1), 2 MoveRight(1), 3 ScrollUp(1), 4 ScrollDown(1): handled when result >= 0, else falls through to XuiControl navigation. VK 0x0c: SetText(null), handled. |
+| 0x25 (key up) | key | Unicode != 0: handled. Buffer null: not handled. Direction (argument 0: keyboard keys only while the global keyboard bit is clear) 3/4: target snap (above), handled. |
 | 0x26 (char) | char | Always handled. 0x08 Backspace. 0x09, 0x0d, 0x1b and < 0x20 ignored. If a range list exists and the char is in no range: ignored. Else InsertChar. |
 | 0x27 (timer) | {id} | id 0xaabbccdd: SmoothScrollStep, handled. |
-| 0x2c | {+0 line, +4 out} | handled. line >= lineCount: E_INVALIDARG. +4 = Multiline ? lineStarts[line] : firstChar. |
+| 0x2c | {+0 line, +4 out} | handled. line >= lineCount (unsigned): E_INVALIDARG. +4 = Multiline ? lineStarts[line] : firstChar. lineCount is that of the last Layout, also for a single-line edit. |
 | 0x2d | {+0 idx, +4 wchar*} | handled. null text: E_INVALIDARG; else InsertText(idx, s, wcslen(s)). |
 | 0x2e | {+0 idx, +4 count} | handled. DeleteText. |
 | 0x7d6 (state frames) | foundation | super, then the same message is sent to Caret; handled. |
@@ -2509,9 +2513,9 @@ With SmoothScroll the velocity is pixels per second (3 lines/s start, +2% per 16
 
 Virtual keyboard: no XUI library code opens one. XamShowKeyboardUI (0x927397e4, thunk 0x921147d0) is called only from dash application functions (0x921bc7a0, 0x921def38, 0x921e2c70, 0x921e69f0, 0x92254db0, 0x9225f4e0, 0x92263338, 0x922704d8, 0x92276bb8, 0x92297858). In the dash, every XuiEdit in the XUI files is ReadOnly + Multiline + SmoothScroll (visuals `edit_NoCaret`, `edit_NoCaret_Focus`, `edit_AutoScroll`).
 
-RE status: partial. Behavior, layout, messages and state machines are complete. Line starts and line height are traced (above). Not analyzed: the measure wrapper 0x92183eb8, and the writer of the source highlight runs (+0x44/+0x48), for which none was found.
+RE status: complete for behavior, layout, messages, state machines, line starts, line height and the measure wrapper (above). No writer of the source highlight runs (+0x44/+0x48) was found in the binary.
 
-exui-runtime (`control/edit.rs`) implements the buffer, TextLimit, AllowedChars, character input, caret index moves, line starts, the first line and first character of the view, the 0x7df display copy with its vertical offset (drawn as the text scroll of `XuiFont_DrawTextLines`, rebuilt where `XuiEdit_BuildDisplayText` runs), 0x7ed, 0x7ee, 0x7ef, 0x7f2, 0x7f3, 0x80d and the smooth scroll step on the XuiEdit level timer. AllowedChars of a loaded XUR is parsed on 0x5, since the loader stores properties without their setters. Not implemented: caret placement, horizontal view shifts, scroll arrows, password characters, up and down key scrolling and the 0x2c to 0x2e messages.
+exui-runtime (`control/edit.rs`) implements everything above except the highlight run copy, which has no source. The loader stores loaded values without setters; for an XuiEdit the setters of Text, TextLimit, AllowedChars and PasswordChar then run in serialized order (class levels root first, then definition order) from the constructor values, as `XuiApplyLoadedProperty` 0x9214f7f8 does through `XuiObjectSetPropertyById` (setter at definition +0x24). So Text reaches the edit by 0x7e0 before TextLimit cuts it. Two requests that make the original move memory past the text terminator are ignored: InsertText with idx past the end, and DeleteText whose idx + n wraps past 2^32. The display copy is drawn as the text scroll of `XuiFont_DrawTextLines` with the vertical offset of 0x7df.
 
 ### XuiMessageBox
 

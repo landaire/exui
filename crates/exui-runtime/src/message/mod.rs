@@ -76,6 +76,9 @@ pub enum BuiltinMessage {
     CreateResources = 0x29,
     InterruptTransition = 0x2a,
     NavigateForwardQuery = 0x2b,
+    EditGetLineStart = 0x2c,
+    EditInsertText = 0x2d,
+    EditDeleteText = 0x2e,
     BeforeUnlink = 0x2f,
     GetValue = 0x7d0,
     SetValue = 0x7d1,
@@ -103,6 +106,8 @@ pub enum BuiltinMessage {
     ScrollEndSetState = 0x7e7,
     GetItemEnabled = 0x7e8,
     SetItemEnabled = 0x7e9,
+    EditGetCaret = 0x7ea,
+    EditSetCaret = 0x7eb,
     MessageBoxResult = 0x7ec,
     EditGetTopLine = 0x7ed,
     EditScrollToLine = 0x7ee,
@@ -514,6 +519,21 @@ pub enum Body {
     NavigateForwardQuery {
         next: Option<ElementId>,
     },
+    /// Start of a wrapped line of a multi-line edit; the first shown
+    /// character of a single-line edit. `None` while unanswered.
+    EditGetLineStart {
+        line: u32,
+        start: Option<u32>,
+    },
+    /// A `None` text is rejected.
+    EditInsertText {
+        index: u32,
+        text: Option<Rc<[u16]>>,
+    },
+    EditDeleteText {
+        index: u32,
+        count: u32,
+    },
     BeforeUnlink {
         flags: ResourceMask,
     },
@@ -608,6 +628,13 @@ pub enum Body {
     SetItemEnabled {
         index: u32,
         enabled: bool,
+    },
+    /// Caret index in the text. `None` while unanswered.
+    EditGetCaret {
+        position: Option<u32>,
+    },
+    EditSetCaret {
+        position: u32,
     },
     /// Sent to the message box owner. `None`: the box failed or was
     /// cancelled (button -1 of the original).
@@ -761,6 +788,9 @@ impl Body {
             Self::CreateResources => BuiltinMessage::CreateResources,
             Self::InterruptTransition => BuiltinMessage::InterruptTransition,
             Self::NavigateForwardQuery { .. } => BuiltinMessage::NavigateForwardQuery,
+            Self::EditGetLineStart { .. } => BuiltinMessage::EditGetLineStart,
+            Self::EditInsertText { .. } => BuiltinMessage::EditInsertText,
+            Self::EditDeleteText { .. } => BuiltinMessage::EditDeleteText,
             Self::BeforeUnlink { .. } => BuiltinMessage::BeforeUnlink,
             Self::GetValue { .. } => BuiltinMessage::GetValue,
             Self::SetValue { .. } => BuiltinMessage::SetValue,
@@ -788,6 +818,8 @@ impl Body {
             Self::ScrollEndSetState { .. } => BuiltinMessage::ScrollEndSetState,
             Self::GetItemEnabled { .. } => BuiltinMessage::GetItemEnabled,
             Self::SetItemEnabled { .. } => BuiltinMessage::SetItemEnabled,
+            Self::EditGetCaret { .. } => BuiltinMessage::EditGetCaret,
+            Self::EditSetCaret { .. } => BuiltinMessage::EditSetCaret,
             Self::MessageBoxResult { .. } => BuiltinMessage::MessageBoxResult,
             Self::EditGetTopLine { .. } => BuiltinMessage::EditGetTopLine,
             Self::EditScrollToLine { .. } => BuiltinMessage::EditScrollToLine,

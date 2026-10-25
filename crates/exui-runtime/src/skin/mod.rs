@@ -9,12 +9,14 @@ use alloc::vec::Vec;
 use exui_core::Document;
 use exui_core::Registry;
 use exui_core::schema::ClassRef;
+use exui_core::schema::PropDef;
 use exui_core::schema::ScalarType;
 use exui_core::xur::ObjectId;
 use exui_core::xur::ObjectRef;
 use exui_core::xur::Value;
 
 use crate::control::Builtin;
+use crate::control::loaded_setters;
 use crate::error::SkinError;
 use crate::error::VisualError;
 use crate::message::Body;
@@ -221,6 +223,8 @@ impl<'p> SkinRegistry<'p> {
 pub(crate) struct Created {
     pub element: ElementId,
     pub timeline: Option<Rc<TimelineData>>,
+    /// Loaded properties whose setters run after creation, in order.
+    pub setters: Vec<&'static PropDef>,
 }
 
 impl Context<'_, '_> {
@@ -246,7 +250,16 @@ impl Context<'_, '_> {
             }
         }
 
-        for Created { element, timeline } in created {
+        for Created {
+            element,
+            timeline,
+            setters,
+        } in created
+        {
+            if !setters.is_empty() {
+                self.edit_apply_loaded(element, &setters);
+            }
+
             if !autoplay && let Some(mut flags) = self.tree.flags(element) {
                 flags.set(ElementFlags::AUTOPLAY_DISABLED, true);
                 let _ = self.tree.set_flags(element, flags);
@@ -334,7 +347,15 @@ impl Context<'_, '_> {
                     object: id,
                 };
                 let timeline = self.skin_timeline(key);
-                Created { element, timeline }
+                let setters = match self.runtime.skins.object_ref(key) {
+                    Some(object) => loaded_setters(self.registry, self.tree, element, object),
+                    None => Vec::new(),
+                };
+                Created {
+                    element,
+                    timeline,
+                    setters,
+                }
             })
             .collect();
         self.finish_instantiation(created, autoplay);

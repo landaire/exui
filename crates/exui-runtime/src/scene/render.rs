@@ -964,6 +964,8 @@ pub(crate) struct TextLineMetrics {
     /// `XuiFontGetLineHeight` 0x92180208: the font line height rounded up.
     pub(crate) line_height: u32,
     pub(crate) line_spacing_adjust: i32,
+    pub(crate) style: TextStyle,
+    pub(crate) box_width: f32,
     pub(crate) box_height: f32,
 }
 
@@ -985,8 +987,87 @@ pub(crate) fn text_line_starts(
     Some(TextLineMetrics {
         line_height,
         line_spacing_adjust: request.line_spacing_adjust,
+        style: request.style,
+        box_width: request.box_width,
         box_height: request.box_height,
     })
+}
+
+/// A measure request of XuiEdit: `text` in the font of its `Text`
+/// presenter with the style and LineSpacingAdjust read at its last layout,
+/// in a rect at the origin.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct EditMeasure<'a> {
+    pub(crate) text: &'a [u16],
+    /// Code units to measure; `None` measures the whole text (count -1).
+    pub(crate) count: Option<usize>,
+    pub(crate) style: TextStyle,
+    pub(crate) line_spacing_adjust: i32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
+}
+
+/// Right and bottom edges of the measured rect.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct TextBounds {
+    pub(crate) right: f32,
+    pub(crate) bottom: f32,
+}
+
+/// The measure wrapper 0x92183eb8 over `XuiMeasureText` 0x92183be8. An
+/// empty text gives an empty rect. A count of 0 and a negative width
+/// without style 0x2000 leave the rect as given in integers; the 0x2000
+/// measurer gives an empty rect for a width below 1. `None` for elements
+/// without text properties and fonts that cannot be created.
+pub(crate) fn edit_text_bounds(
+    tree: &ElementTree,
+    id: ElementId,
+    measure: &EditMeasure<'_>,
+    fonts: &FontLibrary,
+    renderer: &mut TextRenderer,
+) -> Option<TextBounds> {
+    const EMPTY: TextBounds = TextBounds {
+        right: 0.0,
+        bottom: 0.0,
+    };
+
+    let mut request = own_text_request(tree, id, measure.text)?;
+    request.style = measure.style;
+    request.line_spacing_adjust = measure.line_spacing_adjust;
+    request.box_width = measure.width;
+    request.box_height = measure.height;
+    let limit = measure.count.unwrap_or(measure.text.len());
+    let extent = renderer.measure_within(fonts, &request, limit).ok()?;
+
+    // The wrapper converts the rect to integers by truncation.
+    let width = measure.width as i32;
+    let given = TextBounds {
+        right: width as f32,
+        bottom: (measure.height as i32) as f32,
+    };
+    let bounds = if measure.text.first().is_none_or(|code| *code == 0) {
+        EMPTY
+    } else if measure.count == Some(0) {
+        given
+    } else if measure.style.contains(TextStyle::MULTI_LINE_MEASURE) {
+        if width > 0 {
+            TextBounds {
+                right: extent.width,
+                bottom: extent.height,
+            }
+        } else {
+            EMPTY
+        }
+    } else if width < 0 {
+        given
+    } else {
+        TextBounds {
+            right: extent.width,
+            bottom: extent.height,
+        }
+    };
+
+    Some(bounds)
 }
 
 fn own_text_request<'a>(

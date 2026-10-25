@@ -147,6 +147,17 @@ impl TextRenderer {
         fonts: &FontLibrary,
         request: &TextRequest<'_>,
     ) -> Result<TextExtent, TextError> {
+        self.measure_within(fonts, request, request.text.len())
+    }
+
+    /// `XuiMeasureText` of the first `limit` code units of the request
+    /// text, with the request's box width as the wrap width.
+    pub fn measure_within(
+        &mut self,
+        fonts: &FontLibrary,
+        request: &TextRequest<'_>,
+        limit: usize,
+    ) -> Result<TextExtent, TextError> {
         let (index, typeface) = self.instance(fonts, request)?;
         let instance = &mut self.instances[index];
 
@@ -155,8 +166,9 @@ impl TextRenderer {
             height: instance.line_height_ceil(),
             adjust: request.line_spacing_adjust,
         };
-        let extent = layout::measure(
+        let extent = layout::measure_within(
             request.text,
+            limit,
             request.style,
             rect.width,
             pitch,

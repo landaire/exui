@@ -16,6 +16,7 @@ use exui_core::xur::Value;
 use crate::control::Builtin;
 use crate::control::ClassState;
 use crate::control::SavedProperty;
+use crate::control::loaded_setters;
 use crate::control::props;
 use crate::error::NavError;
 use crate::error::TransitionError;
@@ -167,6 +168,7 @@ impl Context<'_, '_> {
         base: Option<BasePathId>,
     ) -> Result<ElementId, LoadError> {
         let mut created: Vec<Created> = Vec::new();
+        let registry = self.registry;
         self.runtime.load_depth += 1;
         let result = scene::instantiate(
             self.tree,
@@ -174,10 +176,11 @@ impl Context<'_, '_> {
             document,
             document.root(),
             base,
-            &mut |_, element, object| {
+            &mut |tree, element, object| {
                 created.push(Created {
                     element,
                     timeline: build_timeline_data(document, object).map(Rc::new),
+                    setters: loaded_setters(registry, tree, element, object),
                 });
             },
         );

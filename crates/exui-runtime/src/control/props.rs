@@ -306,6 +306,10 @@ pub fn edit_allowed_chars() -> &'static PropDef {
     def(&xui::XUI_EDIT, 1)
 }
 
+pub fn edit_password_char() -> &'static PropDef {
+    def(&xui::XUI_EDIT, 2)
+}
+
 pub fn edit_read_only() -> &'static PropDef {
     def(&xui::XUI_EDIT, 3)
 }
@@ -324,7 +328,7 @@ mod tests {
 
     #[test]
     fn positions_name_the_expected_definitions() {
-        let checks: [(&PropDef, &str); 21] = [
+        let checks: [(&PropDef, &str); 22] = [
             (width(), "Width"),
             (show(), "Show"),
             (disable_focus_recursion(), "DisableFocusRecursion"),
@@ -345,6 +349,7 @@ mod tests {
             (progress_value(), "Value"),
             (slider_accel_time(), "AccelTime"),
             (edit_smooth_scroll(), "SmoothScroll"),
+            (edit_password_char(), "PasswordChar"),
             (text_presenter_style(), "TextStyle"),
         ];
 

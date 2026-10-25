@@ -329,6 +329,7 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 - Glyph record advance (+2, u16) = ceil(float advance in pixels). Font metrics are floats (8x value * 0.125) without rounding. Line height is ceiled only for the pitch and for the cache row height (ceil(lh) + 5).
 - Quad top = line y - scroll - fraction * m0. Quad height = ceil(lh) + 1, quad width = ceil(glyph width) + 1, quad left = floor(pen + 0.5) + glyph x bearing. The baseline lies inside the line-height cell at the font ascent.
 - The measurer used without 0x2000 (0x92182da0) loops NextLine with maxWidth = rect width and maxLines = 1 with 0x20, else unlimited. On a truncated line it calls 0x92182370 for a new maxWidth and restarts.
+- `XuiMeasureText` argument 3 is a character count (-1 for the whole text; 0 leaves the rect unchanged). Both measurers pass the count less the characters already measured to NextLine as its character limit and stop when none remain or the next character is NUL, so an empty text measures no lines. NextLine ends a line at the limit; with right-align + 0x10 without 0x4000 it drops characters from the start until both the limit and the width are met.
 
 [INFERENCE] choices of exui-runtime where the binary was not traced:
 
@@ -340,10 +341,12 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 - A next-line position at NUL ends the text (no empty last line). A line that consumes no characters (first character wider than the rect) ends the text.
 - When a font's cache texture is full, a further texture is used for the rest of the frame; the whole cache is cleared before the font is used in a later frame. The binary evicts within the frame (`XuiFont_CacheGlyph` retries after an evict step and a reset step).
 - The drop shadow is a second quad per glyph drawn before it, offset by one pixel down and right with the same UVs.
-- Style bits 0x2, 0x4 and 0x8 and rasterizer hinting are not reproduced. Composite glyphs with point-matched placement are rejected.
+- Style bit 0x8 and rasterizer hinting are not reproduced. Composite glyphs with point-matched placement are rejected.
+- The bold normalization and line intersection use exact f32 `1 / sqrt` and division where the original refines VMX estimates (`vrsqrtefp` with one Newton step, `vrefp` with two); results can differ when a value lies within rounding error of a truncation boundary.
+- Bold and oblique apply to exui's metric model (float `units * pixelSize / unitsPerEm`), not to the original's fixed-point glyph metric records.
 
 ## Open questions
 
-- Exact meaning of style bits 0x2/0x4/0x8 in the rasterizer (bold/italic/underline candidates) and of 0x8000.
+- Meaning of style bit 0x8 (code 0xFFFE in `XuiFont_CacheGlyph` 0x921814c8 and `XuiFont_GetGlyph` 0x92181c08) and of 0x8000. Neither appears in a genuine 6717 scene.
 - Rasterizer hinting (mode chosen by char >= U+2500 and size < 20 px) not decoded.
 - PS3/PS4 microcode (shadow composition order) not decoded.

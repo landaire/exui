@@ -27,6 +27,7 @@ use crate::message::Message;
 use crate::scene::ElementId;
 
 pub use base::ControlState;
+pub(crate) use edit::loaded_setters;
 pub use list::CommonListState;
 pub use list::ItemFlags;
 pub use list::ListLayout;

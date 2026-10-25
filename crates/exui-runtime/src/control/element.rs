@@ -474,6 +474,11 @@ impl Context<'_, '_> {
                 self.edit_set_allowed_chars(element, text.as_deref());
                 return Ok(true);
             }
+        } else if is(props::edit_password_char()) {
+            if let PropValue::String(text) = value {
+                self.edit_set_password_char(element, text.as_deref());
+                return Ok(true);
+            }
         } else if let Some(behavior) = self.declaring_behavior(element, def)
             && behavior.set_property(self, element, def, value)
         {
