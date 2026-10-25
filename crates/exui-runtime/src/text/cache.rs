@@ -21,6 +21,7 @@ use crate::text::raster::Rasterizer;
 use crate::text::sfnt::Font;
 use crate::text::sfnt::GlyphId;
 use crate::text::sfnt::OutlineScratch;
+use crate::text::synthetic::SyntheticStyle;
 
 /// Font instances are shared by (typeface, style & 0xe, point size).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,9 +103,12 @@ impl FontInstance {
 
         let pixel_size = point_size * 96.0 / 72.0;
         let fraction = typeface.line_height_reduction;
+        let style_of = |font: &Font| SyntheticStyle::new(key.font_flags, font.units_per_em());
 
-        let font_line_height =
-            |font: &Font| font.line_height_units() as f32 * pixel_size / font.units_per_em() as f32;
+        let font_line_height = |font: &Font| {
+            (font.line_height_units() + style_of(font).extra_units()) as f32 * pixel_size
+                / font.units_per_em() as f32
+        };
         let primary_height = font_line_height(&typeface.primary);
         let reduced = |height: f32| height - height * fraction;
         let line_height = match &typeface.fallback {
@@ -112,8 +116,10 @@ impl FontInstance {
             None => reduced(primary_height),
         };
 
-        let ascent = typeface.primary.ascender() as f32 * pixel_size
-            / typeface.primary.units_per_em() as f32;
+        let primary = &typeface.primary;
+        let ascent = (primary.ascender() as i32 + style_of(primary).extra_units()) as f32
+            * pixel_size
+            / primary.units_per_em() as f32;
         let page_size = if pixel_size < 12.0 {
             PAGE_SMALL
         } else if pixel_size < 64.0 {
@@ -182,9 +188,11 @@ impl FontInstance {
             .or_else(fallback)
             .unwrap_or((FontSlot::Primary, GlyphId::DEFAULT));
         let font = typeface.font(slot);
+        let style = SyntheticStyle::new(self.key.font_flags, font.units_per_em());
 
         let advance = libm::ceilf(
-            font.advance_units(glyph) as f32 * self.pixel_size / font.units_per_em() as f32,
+            (font.advance_units(glyph) as i32 + style.extra_units()) as f32 * self.pixel_size
+                / font.units_per_em() as f32,
         ) as u16;
         let record = GlyphRecord {
             slot,
@@ -255,6 +263,7 @@ impl FontInstance {
         scratch: &mut Scratch,
     ) -> Result<CellState, GlyphCacheError> {
         let font = typeface.font(record.slot);
+        let style = SyntheticStyle::new(self.key.font_flags, font.units_per_em());
 
         let scale = self.pixel_size * OVERSAMPLE as f32 / font.units_per_em() as f32;
         let placement = Placement {
@@ -263,7 +272,7 @@ impl FontInstance {
         };
         let bounds = {
             let mut sink = scratch.rasterizer.outline_sink(placement);
-            font.outline(record.glyph, &mut sink, &mut scratch.outline)
+            font.outline(record.glyph, style, &mut sink, &mut scratch.outline)
                 .map_err(|source| GlyphCacheError::Outline {
                     glyph: record.glyph.0,
                     source,

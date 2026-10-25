@@ -187,6 +187,14 @@ mod tests {
             Ok(())
         }
 
+        fn create_target(
+            &mut self,
+            _width: NonZeroU32,
+            _height: NonZeroU32,
+        ) -> Result<TextureId, TextureError> {
+            self.slots.insert(())
+        }
+
         fn destroy_texture(&mut self, _id: TextureId) -> Result<(), TextureError> {
             Ok(())
         }

@@ -450,7 +450,7 @@ fn crc32(bytes: &[u8]) -> u32 {
 
 /// Renders `list` into a `width` x `height` target cleared by the list.
 pub fn rasterize(
-    renderer: &SoftwareRenderer,
+    renderer: &mut SoftwareRenderer,
     list: &DrawList,
     width: u32,
     height: u32,

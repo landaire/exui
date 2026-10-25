@@ -63,6 +63,17 @@ impl TextureStore for CountingStore {
             .ok_or(TextureError::UnknownTexture { id })
     }
 
+    fn create_target(
+        &mut self,
+        _width: NonZeroU32,
+        _height: NonZeroU32,
+    ) -> Result<TextureId, TextureError> {
+        let id = self.slots.insert(())?;
+        self.live += 1;
+
+        Ok(id)
+    }
+
     fn destroy_texture(&mut self, id: TextureId) -> Result<(), TextureError> {
         self.slots
             .remove(id)
@@ -655,7 +666,7 @@ fn render_scene(
     let mut list = DrawList::new();
     ui.draw(&mut renderer, &mut list).expect("draw");
 
-    pixel_dump(&rasterize(&renderer, &list, width, height), width)
+    pixel_dump(&rasterize(&mut renderer, &list, width, height), width)
 }
 
 impl MapProvider {

@@ -10,6 +10,7 @@ mod raster;
 mod reader;
 mod renderer;
 mod sfnt;
+mod synthetic;
 mod xtt;
 
 #[cfg(test)]

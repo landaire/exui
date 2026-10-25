@@ -2,6 +2,7 @@
 //! and rendering into a draw list (doc/xui-render.md).
 
 mod content;
+mod effect;
 mod error;
 pub mod figure;
 pub mod image;

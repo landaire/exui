@@ -20,6 +20,7 @@ use crate::scene::PropertyError;
 use crate::scene::TreeError;
 use crate::scene::content::Content;
 use crate::scene::content::ControlProps;
+use crate::scene::effect::EffectTarget;
 use crate::scene::image::CustomImage;
 use crate::scene::property::Effect;
 use crate::scene::property::PropValue;
@@ -288,6 +289,8 @@ pub struct Element {
     /// Properties without a dedicated field, as last set.
     pub(crate) extra: Vec<StoredProperty>,
     pub(crate) custom_image: Option<Box<CustomImage>>,
+    /// Render target of EnableEffects (element +0xf4).
+    pub(crate) effect_target: Option<EffectTarget>,
 }
 
 impl Element {
@@ -316,6 +319,7 @@ impl Element {
             content: Content::new(traits.content),
             extra: Vec::new(),
             custom_image: None,
+            effect_target: None,
         };
 
         let mut path: Vec<&'static PropDef> = Vec::new();
@@ -718,6 +722,9 @@ impl ElementTree {
                 element
                     .content
                     .release_textures(&mut self.released_textures);
+                if let Some(target) = element.effect_target.take() {
+                    self.released_textures.push(target.texture);
+                }
             }
             // A slot whose generation is used up is retired.
             if let Some(generation) = slot.generation.checked_add(1) {
@@ -737,6 +744,9 @@ impl ElementTree {
         for slot in &mut self.slots {
             if let Some(element) = &mut slot.element {
                 element.content.release_textures(out);
+                if let Some(target) = element.effect_target.take() {
+                    out.push(target.texture);
+                }
             }
         }
     }

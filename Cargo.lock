@@ -716,12 +716,12 @@ dependencies = [
 [[package]]
 name = "xbox360-draw"
 version = "0.2.0"
-source = "git+https://github.com/landaire/rust-xbox360?rev=1993e5fdcc92c0cd905c1c06638505fdba3c3617#1993e5fdcc92c0cd905c1c06638505fdba3c3617"
+source = "git+https://github.com/landaire/rust-xbox360?rev=0bd5415736e9fb2656ce8b630f3551e9071f4c91#0bd5415736e9fb2656ce8b630f3551e9071f4c91"
 
 [[package]]
 name = "xbox360-image"
 version = "0.2.0"
-source = "git+https://github.com/landaire/rust-xbox360?rev=1993e5fdcc92c0cd905c1c06638505fdba3c3617#1993e5fdcc92c0cd905c1c06638505fdba3c3617"
+source = "git+https://github.com/landaire/rust-xbox360?rev=0bd5415736e9fb2656ce8b630f3551e9071f4c91#0bd5415736e9fb2656ce8b630f3551e9071f4c91"
 dependencies = [
  "thiserror",
  "xbox360-draw",
@@ -733,7 +733,7 @@ dependencies = [
 [[package]]
 name = "xbox360-raster"
 version = "0.2.0"
-source = "git+https://github.com/landaire/rust-xbox360?rev=1993e5fdcc92c0cd905c1c06638505fdba3c3617#1993e5fdcc92c0cd905c1c06638505fdba3c3617"
+source = "git+https://github.com/landaire/rust-xbox360?rev=0bd5415736e9fb2656ce8b630f3551e9071f4c91#0bd5415736e9fb2656ce8b630f3551e9071f4c91"
 dependencies = [
  "thiserror",
  "xbox360-draw",

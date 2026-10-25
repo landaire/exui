@@ -16,6 +16,8 @@ use crate::text::error::ShortRead;
 use crate::text::library::FontData;
 use crate::text::reader::Reader;
 use crate::text::reader::u16_at;
+use crate::text::synthetic::LoaderPoint;
+use crate::text::synthetic::SyntheticStyle;
 
 /// Most outline points of one glyph over all its components. Not 1:1: it
 /// bounds the work hostile font data can cause; the original's limit is not
@@ -225,14 +227,15 @@ impl Font {
         u16_at(self.tables.bytes(), self.hmtx.start + index * 4).unwrap_or(0)
     }
 
-    /// Emits the outline of `glyph` and returns its glyf bounds, or `None`
-    /// for a glyph without contours.
+    /// Emits the outline of `glyph` with the synthetic `style` and returns
+    /// its styled glyf bounds, or `None` for a glyph without contours.
     ///
     /// Not 1:1: the point and component limits bound the work hostile font
     /// data can cause; the original's limits are not known.
     pub(crate) fn outline(
         &self,
         glyph: GlyphId,
+        style: SyntheticStyle,
         sink: &mut dyn OutlineSink,
         scratch: &mut OutlineScratch,
     ) -> Result<Option<GlyphBounds>, GlyphError> {
@@ -244,7 +247,19 @@ impl Font {
             return Ok(None);
         }
 
-        let bounds = GlyphHeader::parse(&mut Reader::new(&scratch.record))?.bounds;
+        let header_bounds = GlyphHeader::parse(&mut Reader::new(&scratch.record))?.bounds;
+        let [x_min, y_min, x_max, y_max] = style.bounds(
+            header_bounds.x_min,
+            header_bounds.y_min,
+            header_bounds.x_max,
+            header_bounds.y_max,
+        );
+        let bounds = GlyphBounds {
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        };
 
         let mut pending = Vec::new();
         pending.push(Component {
@@ -276,6 +291,9 @@ impl Font {
                     &mut scratch.contours,
                 )?;
                 points += scratch.contours.points.len();
+                if style != SyntheticStyle::default() {
+                    apply_style(style, &mut scratch.contours, &mut scratch.loader);
+                }
                 emit_contours(&scratch.contours, &component.transform, sink);
                 continue;
             }
@@ -370,6 +388,21 @@ pub(crate) struct OutlineScratch {
     /// glyf record of the component being decoded.
     record: Vec<u8>,
     contours: Contours,
+    loader: Vec<LoaderPoint>,
+}
+
+/// Styles decoded points in the loader's 16-bit, y-down convention.
+fn apply_style(style: SyntheticStyle, contours: &mut Contours, loader: &mut Vec<LoaderPoint>) {
+    loader.clear();
+    loader.extend(contours.points.iter().map(|point| LoaderPoint {
+        x: point.x as i16,
+        y: (point.y as i16).wrapping_neg(),
+    }));
+    style.apply(loader, &contours.ends);
+    for (point, styled) in contours.points.iter_mut().zip(loader.iter()) {
+        point.x = styled.x as i32;
+        point.y = -(styled.y as i32);
+    }
 }
 
 /// Decoded points of one simple glyph.

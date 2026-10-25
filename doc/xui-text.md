@@ -31,7 +31,7 @@ Dash registers (`DashSetLanguageAndFonts` 0x921ca820) name "ConvectionUI" with f
 
 `XuiCreateFont(typeface, ?, style, ?, out, pointSize)` (0x92182608): pointSize < 1 is rejected; empty/null name uses the default typeface; the renderer reports scalable fonts so pointSize is clamped to <= 150; fonts are cached by (typeface, style & 0xe, size).
 
-The font renderer (vtable 0x9200ec88, object 0x9280b5f4) is initialized with 96 dpi. Pixel size = `pointSize * 96 / 72`. Style bits 0x2 and 0x4 become renderer flags 1 and 2 (synthetic emboldening/oblique [INFERENCE]); 0x8 makes the draw loop start with the special code 0xFFFE.
+The font renderer (vtable 0x9200ec88, object 0x9280b5f4) is initialized with 96 dpi. Pixel size = `pointSize * 96 / 72`. Style bits 0x2 and 0x4 become renderer flags 1 and 2 (`XuiFontRenderer_CreateFont` 0x92189f90): synthetic oblique and synthetic bold (section 4); 0x8 makes the draw loop start with the special code 0xFFFE.
 
 Font instance (`XuiFont_InitInstance` 0x92182048): metrics from the renderer in pixels (rasterizer works at 8x, metrics scaled by 0.125). `lineHeight(+0x34) = m0 - m0 * fraction`, taking the maximum over linked fallback fonts. Glyph cache texture size: 128x128 if pixel size < 12, 256x256 if < 64, else 512x512 (A8 format 0x04900002). Shadow offset = (1/cacheW, 1/cacheH).
 
@@ -43,12 +43,13 @@ XuiText (and XuiTextPresenter, same layout): Text +0x20 (string), TextColor +4, 
 
 ## 4. TextStyle bits
 
-RE status: complete for bits listed; 0x1 meaning inferred.
+RE status: complete for bits listed; 0x1 meaning inferred; 0x8 and 0x8000 not traced.
 
 | Bit | Meaning | Evidence |
 |---|---|---|
 | 0x0001 | drop shadow on (glyph record flag; PS4 with DropShadowColor) | `XuiFont_DrawQuads` 0x9217f5a0 |
-| 0x0002, 0x0004 | font style flags passed to font creation | 0x92189f90 |
+| 0x0002 | synthetic oblique (below) | 0x92189f90, 0x9218cc80 |
+| 0x0004 | synthetic bold (below) | 0x92189f90, 0x9218cce8 |
 | 0x0008 | font flag; draw loop begins with code 0xFFFE | 0x92183098 |
 | 0x0010 | no word wrap: clip at the rect width (with right alignment and no ellipsis, clip from the left so the end stays visible) | `XuiFont_NextLine` 0x92182758 |
 | 0x0020 | single line: stop after the first line, keep trailing spaces | 0x92182758 |
@@ -59,6 +60,24 @@ RE status: complete for bits listed; 0x1 meaning inferred.
 | 0x2000 | multi-line measurement (`XuiMeasureText` uses the wrapping measurer) | 0x92183be8 |
 | 0x4000 | ellipsis when truncated | 0x92183098 |
 | 0x010000, 0x040000, 0x100000 | Korean word-wrap rule enable for left (with 0x100), center, right alignment | 0x92180040 |
+
+Synthetic styles. The font face instance (`XuiFontFace_InitInstance` 0x9218aa70) holds the flags at +0xc, the shear divisor 3.0 at +0x10 and `k = unitsPerEm * 0.0122` (f32) at +0x14 and +0x18. The outline loader (`XuiFontFace_LoadGlyphOutline` 0x9218dd48) stores each point as 16-bit font units with y negated, then applies the oblique shear and afterwards the emboldening to each simple glyph or composite component before its component transform. All arithmetic is f32; results are truncated toward zero and stored as 16 bits.
+
+```
+oblique (0x9218cc80):  x -= (int)(y / 3.0 + 0.5)                         (y negated: upright tops lean right)
+bold (0x9218cce8), per contour, prev/next wrap and are read before they move:
+    na = normalize(prev - cur), nb = normalize(cur - next)      (zero length gives 0)
+    oa = (k * -na.y, k * na.x), ob = (k * -nb.y, k * nb.x)
+    if (int)(ob.x * 100) == (int)(oa.x * 100) and (int)(ob.y * 100) != (int)(oa.y * 100): d = oa
+    else:
+        I = intersection of line (prev+oa, cur+oa) with line (cur+ob, next+ob)
+            (+inf when |cross| <= 2^-23 and the lines coincide, NaN when parallel)
+        if I.x is NaN or infinite: I = ((cur+ob) + (cur+oa)) * 0.5
+        d = I - cur
+    x += (int)(d.x + k + 0.5); y += (int)(d.y - k + 0.5)
+```
+
+The outline grows outward by k and moves right and up by k, so left and bottom edges stay. With bold, `c = (int)ceil(2k)` font units are added to the advance (`XuiFontFace_GlyphAdvance` 0x9218b6a8), the line height (0x9218b238), the ascender (0x9218b3a8), the maximum advance (0x9218b2f8), the bounds height (0x9218b5f0) and the glyph bounds xMax and yMax; oblique moves the glyph bounds to `xMin + yMin / 3` and `xMax + yMax / 3` (fused multiply-add, truncated; 0x9218ae28). The descender is unchanged.
 
 If bits 0x3f0000 are all zero, 0x140000 is ORed in (0x9279ac70). XuiEdit uses (style & ~0x30) | 0x2000 for multi-line and (style | 0x30) & ~0x2000 for single-line, and clears 0x4000 when editable.
 

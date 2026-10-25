@@ -13,6 +13,7 @@ use alloc::vec::Vec;
 use xbox360_draw::draw::AddressMode;
 use xbox360_draw::draw::BlendMode;
 use xbox360_draw::draw::ClipRect;
+use xbox360_draw::draw::ColorWriteMask;
 use xbox360_draw::draw::DrawList;
 use xbox360_draw::draw::DrawState;
 use xbox360_draw::draw::Filter;
@@ -69,6 +70,7 @@ pub(crate) enum Clip {
 pub(crate) struct DeviceState {
     pub(crate) blend: BlendMode,
     pub(crate) clip: Option<Clip>,
+    pub(crate) color_write: ColorWriteMask,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -101,6 +103,21 @@ impl<'l> Painter<'l> {
             polygon: Vec::new(),
             scratch: Vec::new(),
         }
+    }
+
+    /// Sets the DC view transform.
+    pub(crate) fn set_view(&mut self, view: Matrix4) {
+        self.view = view;
+    }
+
+    /// Sends the following draws into the render target `texture`.
+    pub(crate) fn begin_target(&mut self, texture: TextureId) -> Result<(), DrawListError> {
+        self.list.begin_target(texture)
+    }
+
+    /// Sends the following draws to the frame.
+    pub(crate) fn end_target(&mut self) {
+        self.list.end_target();
     }
 
     fn project(world_view: &Matrix4, x: f32, y: f32) -> ([f32; 2], bool) {
@@ -216,6 +233,7 @@ impl<'l> Painter<'l> {
             sampler: brush.sampler,
             blend: device.blend,
             clip,
+            color_write: device.color_write,
         };
 
         self.list.push(state, &self.vertices, &self.triangles)
@@ -324,6 +342,13 @@ pub(crate) fn modulate(a: u32, b: u32) -> u32 {
     }
 
     out
+}
+
+/// A straight `0xAARRGGBB` color as a straight texel.
+pub(crate) fn straight_rgba(argb: u32) -> Rgba8 {
+    let [alpha, red, green, blue] = argb.to_be_bytes();
+
+    Rgba8::new(red, green, blue, alpha)
 }
 
 /// 6-bit DC texture flags value (`XuiDC_SetTextureFlags`): bits 0-1 address

@@ -18,6 +18,7 @@ The element objproc thunk for every class is `mr r3, r5; b target` (0x9213d958..
 | +0x0c / +0x10 | Width / Height (f32) |
 | +0x14 | Opacity (f32) |
 | +0x18 / +0x20 / +0x28 | first child / next sibling / parent (element data pointers) |
+| +0x2c | effect object list (see 5) |
 | +0x30 | Position (vec3) |
 | +0x3c | Scale (vec3) |
 | +0x48 | Rotation (quaternion x,y,z,w) |
@@ -27,12 +28,13 @@ The element objproc thunk for every class is `mr r3, r5; b target` (0x9213d958..
 | +0xe8 | Anchor (u32) |
 | +0xec | BlendMode (u32) |
 | +0xf0 | flags (below) |
+| +0xf4 | effect render target (see 5) |
 | +0xf8 | design Position (vec3) |
 | +0x104 / +0x108 | design Width / Height |
 | +0x10c / +0x110 | parent size at design capture |
 | +0x114 / +0x118 | design Scale.x / Scale.y |
 
-Flags word +0xf0: bit0 Show, bit1 transform dirty, 0x10 "layout in progress", 0x20 "children keep design layout" (see 3), 0x40 DesignTime, 0x80 DisableTimelineRecursion, bits 8-11 ColorWriteFlags, 0x1000 ClipChildren, 0x4000 EnableEffects, 0x10000 DisableFocusRecursion, 0x20000 use alternate render parent, 0x40000 set by message 1.
+Flags word +0xf0: bit0 Show, bit1 transform dirty, 0x10 "layout in progress", 0x20 "children keep design layout" (see 3), 0x40 DesignTime, 0x80 DisableTimelineRecursion, bits 8-11 ColorWriteFlags, 0x1000 ClipChildren, 0x4000 EnableEffects, 0x8000 effect objects changed (set by message 0x13 when +0x2c is set), 0x10000 DisableFocusRecursion, 0x20000 use alternate render parent, 0x40000 set by message 1 and cleared by message 0 of an EnableEffects element.
 
 Element property ids (XuiElement_GetPropDefs 0x92149960): Id 0, Width 1, Height 2, Position 3, Scale 4, Rotation 5, Opacity 6, Anchor 7, Pivot 8, Show 9, BlendMode 10, DisableTimelineRecursion 11, DesignTime 12, ColorWriteFlags 13, ClipChildren 14, EnableEffects 15, DisableFocusRecursion 16.
 
@@ -127,7 +129,7 @@ SetBounds (`XuiElement_SetBounds` 0x921452c0) clamps W/H to >= 0, sends message 
 
 ## 5. Render traversal and draw order
 
-RE status: complete for message 0 path; message 1 path partial.
+RE status: complete for message 0 and message 1 paths; effect objects (+0x2c) partial.
 
 Render message 0 (`XuiElement_OnRender` 0x921640f8) on a base element only does work when it has children: push state (6), `XuiElement_RenderChildren` (0x92161218), pop state. Derived classes (Figure, Image, Text...) draw themselves between their own push/pop and do not render children here (children of those classes are rendered through their own handlers; XuiFigure and XuiImage do not draw children).
 
@@ -144,7 +146,49 @@ Zero-opacity children are skipped only when their effective blend is "normal" (m
 
 Hit test (message 3, `XuiElement_OnHitTest` 0x92159e18): point transformed by the inverse world matrix, inside when `-1 <= x <= W+1 and -1 <= y <= H+1` and Show set.
 
-Message 1 (`XuiElement_OnRenderPass1` 0x92164078) sets flag 0x40000 and renders children with kind 1; with EnableEffects it goes through the effect path (0x92163e28). Effects are not documented here.
+### Render pass 1 and EnableEffects
+
+Every frame the app sends message 1 to the root before message 0 (`XuiApp_RenderPreprocess` 0x9210d300, app vtable slot 6 at 0x92001d04; message 0 is sent by `XuiApp_Render` 0x9210d370, slot 5). Both start from the render data {DC, 0xffffffff, blend 1, color write 0}. Base-element handling of message 1 (`XuiElement_OnRenderPass1` 0x92164078, reached through `XuiElement_OnMessage` 0x92168ea0):
+
+```
+set flag 0x40000
+RenderChildren(elem, rd, kind 1)        (no PushRenderState: the filter sees rd.blend = 1)
+if flags & EnableEffects: EffectPass1(elem, rd)
+```
+
+XuiControl (0x9215aa68) only creates its visual on messages 0 and 1 and does not handle them; XuiScene, XuiGroup, XuiCanvas, XuiVisual, XuiTabScene and MediaTwist do not handle message 1, so it reaches every shown element below the root. Targets are therefore drawn in post order: the targets of descendants before the target of their ancestor.
+
+`EffectPass1` (`XuiElement_RenderEffectTarget` 0x92163e28):
+
+```
+w = int(ceil(W)), h = int(ceil(H))     (fctiwz)
+target = elem+0xf4: create (0x92187bd0) or resize (0x92185648) to (w, h)
+begin target (0x921857f8): render target 0 = target surface, depth surface removed,
+    Clear(0 rects, flags 0xf = color targets only, color 0, z 1.0, stencil 0)
+local, world = elem matrices (saved; UpdateTransform first)
+savedView = DC view; DC view = Inverse(world)          (XuiMatrix_Inverse 0x9217eca8, also used by the hit test)
+PushRenderState(elem, rd); RenderChildren(elem, rd, kind 0); PopState
+end target (0x92185958): resolve the surface into the texture, restore render target 0 and the depth surface
+DC view = savedView; elem matrices restored
+SetWorldTransform(local); apply effect objects (0x92160b30); DC ResetState (vtable +0x94)
+```
+
+Target object (0x24 bytes): +0 surface, +4 texture, +8 texture brush (0x9217c078), +0xc/+0x10 allocated size, +0x14/+0x18 used size (w, h of the last pass 1). Resize stores the used size, and only when it exceeds the allocated size in either direction recreates surface and texture with each side `(n + 0x1f) & ~0x1f`; surface and texture are format 0x18280186 (A8R8G8B8), one level. Setting the render target resets the viewport to the surface, and `XuiDC_BuildViewportMatrix` rebuilds InvViewport from it (via DC vtable +0x1c 0x92178568), so with the view `Inverse(world)` the children land at element units = target pixels from the top-left corner. ClipChildren of the element yields the rectangle (0, 0, W, H) of the target. The element's opacity, blend mode and color write flags apply inside the target; ancestors' render state does not (pass 1 pushes none).
+
+Message 0 of an EnableEffects base element (`XuiElement_OnRender` with `XuiElement_DrawEffectTarget` 0x92157078 in place of RenderChildren): PushRenderState (opacity, blend, clip, color write as in pass 0), clear flag 0x40000, and if a target exists: SetWorldTransform(world), then `XuiDC_DrawTargetQuad` (0x92185a50) draws the texture brush (`XuiTexture_Apply` with texture flags 0xa: clamp/clamp, linear; PS1 `tex * ColorFactor`) with VS2 as one 4-vertex triangle strip (x, y, u, v), o = 0.5 (DC vtable +0xe4 returns the constant 0.5 at 0x920048ec):
+
+```
+(-o, h-o, 0, h/allocH), (-o, -o, 0, 0), (w-o, h-o, w/allocW, h/allocH), (w-o, -o, w/allocW, 0)
+```
+
+Effects of this path on the output:
+
+- The children are drawn at element units and resampled through the element's world matrix and the root view (bilinear, shifted half a texel up and left, so each pixel mixes two texels per axis at unit scale).
+- Blending inside the target is the D3D straight-alpha blend with separate alpha off: the target alpha receives `src.a * src.a + dst.a * (1 - src.a)` for normal blending, and multiply (mode 2) multiplies the target alpha by the source alpha. The target texel is then composited with straight alpha. The skin visual `twist_nitem` (MediaTwist) uses this: its `LeftFade`/`RightFade` figures (BlendMode 2, gradient stops 0xffffffff/0x00ffffff) fade the item text out through the target alpha, which has no effect on screen color without the target.
+- The element's opacity applies twice: inside the target and at the composite.
+- Children outside (0, 0, w, h) are cut off by the target.
+
+Effect objects: elements keep a list at +0x2c (built by 0x921609e8; XuiTextureEffect entries resolve a relative path). After the target is resolved, 0x92160b30 applies them to the target through 0x92185f18. No genuine 6717 scene contains Xui*Effect objects, and this application is not traced further.
 
 ## 6. Render state inheritance (opacity, ColorFactor, BlendMode, ColorWriteFlags, ClipChildren)
 
@@ -406,15 +450,16 @@ RE status: partial.
 - `scene::ElementTree` holds elements in an arena with generation-checked `ElementId`s. `scene::instantiate` creates elements from a `xur::Document`, applies class defaults from the schema and then the loaded properties in file order, and attaches each element to its parent before creating its children.
 - `ElementTree::set_property` runs the documented setters: Width/Height through SetBounds and design capture, Position through `XuiElementSetPosition`, Anchor re-layout for XuiGroup, XuiScene, XuiVisual and XuiList. Size changes are queued for the controls runtime (`take_size_changes`).
 - `scene::render` walks the tree and writes an `xbox360-draw` draw list. World, view and the `m[2][3] = 0.001` projection are applied on the CPU: a vertex lands at `(x / w, y / w)` with `w = w0 + 0.001 * z`. ClipChildren planes become a draw-list clip rectangle when they are axis-aligned (pixel-center rule) and are clipped on the CPU otherwise.
+- Render pass 1 is a draw-list target pass per EnableEffects element, in pass-1 order, before the frame commands. The element owns a render target texture (`TextureStore::create_target`, straight texels, allocated and grown as in 0x92185648). The children are walked from an identity parent matrix with an identity view, which equals `child.local * world * Inverse(world)`. Message 0 of the element draws the target quad of 0x92185a50 instead of its children. ColorWriteFlags become the draw-list color write mask.
 - `Ui` owns the registry, resources and the root canvas; the runtime holds the fonts and the text renderer. The DC view transform and the clear color are set by the application.
 
 Deviations and inferences:
 
 - The draw list is 2D, so texture coordinates are interpolated affinely; Xenos interpolates perspective-correct. This only differs for elements with depth.
-- ColorWriteFlags are stored but not applied (no genuine scene sets them).
 - Draw-list samplers have one filter; it follows the magnification bit (0x20). Mirror-once addressing (3) maps to mirror.
-- BlendMode 2 to 4 use straight vertex colors and unpremultiplied texels (`BlendMode::uses_straight_source`); a texel with alpha 0 has no color left after premultiplied decoding. Figure gradients drawn with these modes are built with opaque texels instead, so their transparent stops keep their color (the `twist_nitem` edge fades multiply by white). This changes only the target alpha, which no XUI blend factor reads.
+- BlendMode 2 to 4 use straight vertex colors and unpremultiplied texels (`BlendMode::uses_straight_source`); a texel with alpha 0 has no color left after premultiplied decoding. Figure gradients drawn with these modes are therefore uploaded as straight textures, so their transparent stops keep their color and, inside a target pass, their alpha multiplies the target alpha (the `twist_nitem` edge fades).
 - Triangles with a vertex at `w <= 0` are dropped instead of clipped against the near plane. A ClipChildren rectangle with a corner at `w <= 0` or with no area clips everything.
 - A zero-length figure edge normalizes to the zero vector.
-- Effects are not drawn. Scene image content (paths ending in `.xu?`) is drawn as a plain child of the XuiImage, without size-mode placement.
+- Scene image content (paths ending in `.xu?`) is drawn as a plain child of the XuiImage, without size-mode placement.
+- Effect objects (+0x2c list) are not applied to effect targets.
 - The order of property application and attachment during instantiation was not traced; parents get their properties before their children are created.

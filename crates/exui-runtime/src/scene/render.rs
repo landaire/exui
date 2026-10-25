@@ -7,6 +7,7 @@ use core::num::NonZeroU32;
 
 use xbox360_draw::draw::AddressMode;
 use xbox360_draw::draw::BlendMode;
+use xbox360_draw::draw::ColorWriteMask;
 use xbox360_draw::draw::DrawList;
 use xbox360_draw::draw::Filter;
 use xbox360_draw::draw::Rgba8;
@@ -33,6 +34,9 @@ use crate::scene::SourceImage;
 use crate::scene::XuiBlendMode;
 use crate::scene::content::Content;
 use crate::scene::content::is_scene_path;
+use crate::scene::effect::EffectTarget;
+use crate::scene::effect::STRIP_TRIANGLES;
+use crate::scene::effect::TargetSize;
 use crate::scene::figure::FillType;
 use crate::scene::figure::GRADIENT_TEXELS;
 use crate::scene::figure::fill_transform;
@@ -51,6 +55,7 @@ use crate::scene::paint::Painter;
 use crate::scene::paint::TextureFlags;
 use crate::scene::paint::modulate;
 use crate::scene::paint::sampler_from_flags;
+use crate::scene::paint::straight_rgba;
 use crate::text::FontLibrary;
 use crate::text::GlyphQuad;
 use crate::text::TextError;
@@ -80,10 +85,29 @@ struct RenderState {
     device: DeviceState,
 }
 
+impl RenderState {
+    /// The render data both passes start from (0x9210d300, 0x9210d370) on a
+    /// reset DC: opaque white, normal blending, all channels, no clip
+    /// planes.
+    const RESET: Self = Self {
+        world: Matrix4::IDENTITY,
+        color_factor: 0xffff_ffff,
+        blend_value: XuiBlendMode::Normal,
+        device: DeviceState {
+            blend: BlendMode::Normal,
+            clip: None,
+            color_write: ColorWriteMask::ALL,
+        },
+    };
+}
+
 /// Buffers one draw reuses from the previous one.
 #[derive(Default)]
 pub struct RenderScratch {
     stack: Vec<(ElementId, RenderState)>,
+    /// Pass-1 walk: element and whether its children were queued.
+    pass1: Vec<(ElementId, bool)>,
+    effects: Vec<ElementId>,
     vertices: Vec<LocalVertex>,
     triangles: Vec<[u32; 3]>,
     strip: Vec<[f32; 2]>,
@@ -91,7 +115,8 @@ pub struct RenderScratch {
 }
 
 /// Draws `root` and its shown descendants in document order. `view` maps
-/// the root canvas to the target (the DC view transform).
+/// the root canvas to the target (the DC view transform). The render
+/// targets of EnableEffects elements are drawn first, as target passes.
 pub fn render(
     tree: &mut ElementTree,
     root: ElementId,
@@ -105,52 +130,161 @@ pub fn render(
         let _ = context.textures.destroy_texture(texture);
     }
 
-    let mut painter = Painter::new(list, view);
-    // DC state after reset: normal blending, all channels, no clip planes.
-    let initial = RenderState {
-        world: Matrix4::IDENTITY,
-        color_factor: 0xffff_ffff,
-        blend_value: XuiBlendMode::Normal,
-        device: DeviceState {
-            blend: BlendMode::Normal,
-            clip: None,
-        },
-    };
-
-    // Moved out so the draw functions can borrow the other buffers; it is
-    // empty again when the walk ends.
+    // Moved out so the draw functions can borrow the other buffers; they
+    // are empty again when the walks end.
     let mut stack = core::mem::take(&mut scratch.stack);
-    stack.push((root, initial));
+    let mut effects = core::mem::take(&mut scratch.effects);
+
+    // Pass 1 sets the DC view to the inverse of the element's world matrix,
+    // so its children are drawn in element units.
+    let mut painter = Painter::new(list, Matrix4::IDENTITY);
+    effect_elements(tree, root, &mut scratch.pass1, &mut effects);
+    for &id in &effects {
+        draw_effect_target(tree, id, context, &mut painter, scratch, &mut stack)?;
+    }
+    effects.clear();
+    scratch.effects = effects;
+
+    painter.set_view(view);
+    stack.push((root, RenderState::RESET));
+    draw_queued(tree, context, &mut painter, scratch, &mut stack)?;
+    scratch.stack = stack;
+
+    Ok(())
+}
+
+/// Draws the queued elements and their descendants (message 0).
+fn draw_queued(
+    tree: &mut ElementTree,
+    context: &mut RenderContext<'_, '_>,
+    painter: &mut Painter<'_>,
+    scratch: &mut RenderScratch,
+    stack: &mut Vec<(ElementId, RenderState)>,
+) -> Result<(), FrameError> {
     while let Some((id, parent_state)) = stack.pop() {
         let Some(element) = tree.get_mut(id) else {
             continue;
         };
         let world = element.local_transform().mul(&parent_state.world);
-        let state = push_state(&parent_state, element, world, &painter);
+        let state = push_state(&parent_state, element, world, painter);
         if let Some(custom) = element.custom_image.as_deref() {
-            draw_custom_image(custom, &state, context, &mut painter)?;
+            draw_custom_image(custom, &state, context, painter)?;
         }
         let Some(element) = tree.get(id) else {
             continue;
         };
 
         match element.traits.content {
-            ContentKind::None => push_children(tree, id, state, &mut stack),
-            ContentKind::Figure => draw_figure(tree, id, &state, context, &mut painter, scratch)?,
+            ContentKind::None if element.flags.contains(ElementFlags::ENABLE_EFFECTS) => {
+                draw_effect(element, &state, painter)?
+            }
+            ContentKind::None => push_children(tree, id, state, stack),
+            ContentKind::Figure => draw_figure(tree, id, &state, context, painter, scratch)?,
             // An image brush's attached scene root is a child of the image.
             ContentKind::Image | ContentKind::ImagePresenter => {
-                draw_image(tree, id, &state, context, &mut painter)?;
-                push_children(tree, id, state, &mut stack);
+                draw_image(tree, id, &state, context, painter)?;
+                push_children(tree, id, state, stack);
             }
-            ContentKind::NineGrid => {
-                draw_nine_grid(tree, id, &state, context, &mut painter, scratch)?
-            }
+            ContentKind::NineGrid => draw_nine_grid(tree, id, &state, context, painter, scratch)?,
             ContentKind::Text | ContentKind::TextPresenter => {
-                draw_text(tree, id, &state, context, &mut painter, scratch)?
+                draw_text(tree, id, &state, context, painter, scratch)?
             }
         }
     }
-    scratch.stack = stack;
+
+    Ok(())
+}
+
+/// The EnableEffects elements that render pass 1 reaches, in the order it
+/// draws their targets: `XuiElement_OnRenderPass1` (0x92164078) renders the
+/// children with message 1 first, then the element's own target. Pass 1
+/// pushes no render state, so the children filter sees normal blending.
+fn effect_elements(
+    tree: &ElementTree,
+    root: ElementId,
+    walk: &mut Vec<(ElementId, bool)>,
+    effects: &mut Vec<ElementId>,
+) {
+    walk.push((root, false));
+    while let Some((id, children_queued)) = walk.pop() {
+        let Some(element) = tree.get(id) else {
+            continue;
+        };
+
+        if children_queued {
+            if element.flags.contains(ElementFlags::ENABLE_EFFECTS) {
+                effects.push(id);
+            }
+            continue;
+        }
+
+        walk.push((id, true));
+        let mut child = element.links.last_child;
+        while let Some(current) = child {
+            let Some(child_element) = tree.get(current) else {
+                break;
+            };
+            if should_render(child_element, XuiBlendMode::Normal) {
+                walk.push((current, false));
+            }
+            child = child_element.links.prev_sibling;
+        }
+    }
+}
+
+/// The effect path of pass 1 (0x92163e28): sizes the element's target to
+/// its rounded-up size, then draws its children into it with message 0
+/// after pushing the element's own render state.
+fn draw_effect_target(
+    tree: &mut ElementTree,
+    id: ElementId,
+    context: &mut RenderContext<'_, '_>,
+    painter: &mut Painter<'_>,
+    scratch: &mut RenderScratch,
+    stack: &mut Vec<(ElementId, RenderState)>,
+) -> Result<(), FrameError> {
+    let Some(element) = tree.get_mut(id) else {
+        return Ok(());
+    };
+    let used = TargetSize::of_element(element.size);
+    let Some(texture) = EffectTarget::prepare(&mut element.effect_target, used, context.textures)?
+    else {
+        return Ok(());
+    };
+
+    let state = push_state(&RenderState::RESET, element, Matrix4::IDENTITY, painter);
+    painter.begin_target(texture)?;
+    push_children(tree, id, state, stack);
+    draw_queued(tree, context, painter, scratch, stack)?;
+    painter.end_target();
+
+    Ok(())
+}
+
+/// Message 0 of an EnableEffects element (0x92157078): its target drawn
+/// with the element's world matrix instead of its children. Nothing is
+/// drawn before pass 1 has created a target.
+fn draw_effect(
+    element: &Element,
+    state: &RenderState,
+    painter: &mut Painter<'_>,
+) -> Result<(), FrameError> {
+    let Some(target) = element.effect_target.as_ref() else {
+        return Ok(());
+    };
+
+    let brush = Brush {
+        texture: Some(target.texture),
+        sampler: sampler_from_flags(TextureFlags::CLAMP, TextureMapping::Direct),
+        color: PaintColor::Argb(state.color_factor),
+    };
+    painter.draw(
+        &state.world,
+        state.device,
+        &brush,
+        &target.quad(),
+        &STRIP_TRIANGLES,
+    )?;
 
     Ok(())
 }
@@ -254,6 +388,11 @@ fn push_state(
     if element.flags.contains(ElementFlags::CLIP_CHILDREN) {
         state.device.clip = Some(painter.clip_planes(&world, element.size));
     }
+    // ColorWriteFlags 0 inherits.
+    let color_write = element.flags.color_write();
+    if color_write != 0 {
+        state.device.color_write = ColorWriteMask::from_bits_truncate(color_write as u8);
+    }
 
     state
 }
@@ -344,17 +483,22 @@ fn draw_figure(
             || figure.gradient_straight != straight)
     {
         let texels = gradient_texels(&figure.fill.stops);
-        // Straight-source blends read the texel color, which a premultiplied
-        // texel of alpha 0 no longer has (a multiply fade drawing black).
-        // Their texel alpha only reaches the target alpha, which no XUI
-        // blend factor reads, so these texels are stored opaque.
-        let opaque = if straight { 0xff00_0000 } else { 0 };
-        let pixels = texels
-            .iter()
-            .map(|&argb| Rgba8::from_argb_straight(argb | opaque))
-            .collect();
         let width = NonZeroU32::new(GRADIENT_TEXELS as u32).unwrap_or(NonZeroU32::MIN);
-        let Ok(image) = Image::new(width, NonZeroU32::MIN, pixels) else {
+        // Straight-source blends read the texel color, which a premultiplied
+        // texel of alpha 0 no longer has (a multiply fade drawing black), and
+        // in a target pass Modulate also multiplies the target alpha by the
+        // texel alpha.
+        let image = if straight {
+            let pixels = texels.iter().map(|&argb| straight_rgba(argb)).collect();
+            Image::new_straight(width, NonZeroU32::MIN, pixels)
+        } else {
+            let pixels = texels
+                .iter()
+                .map(|&argb| Rgba8::from_argb_straight(argb))
+                .collect();
+            Image::new(width, NonZeroU32::MIN, pixels)
+        };
+        let Ok(image) = image else {
             // 128 pixels always fill a 128x1 image.
             return Ok(());
         };

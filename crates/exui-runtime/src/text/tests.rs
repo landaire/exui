@@ -40,6 +40,24 @@ impl TextureStore for Store {
         Ok(())
     }
 
+    fn create_target(
+        &mut self,
+        width: core::num::NonZeroU32,
+        height: core::num::NonZeroU32,
+    ) -> Result<TextureId, TextureError> {
+        let pixels = vec![Rgba8::TRANSPARENT; width.get() as usize * height.get() as usize];
+        let Ok(image) = Image::new_straight(width, height, pixels) else {
+            return Err(TextureError::TooLarge {
+                width: width.get(),
+                height: height.get(),
+                max: xbox360_draw::texture::MAX_TEXTURE_DIMENSION,
+            });
+        };
+        self.live += 1;
+
+        self.slots.insert(image)
+    }
+
     fn destroy_texture(&mut self, id: TextureId) -> Result<(), TextureError> {
         self.live -= 1;
         self.slots
@@ -878,7 +896,12 @@ fn glyph_limits_are_typed_errors() {
     };
     let mut outline = |glyph: u16| {
         let mut sink = rasterizer.outline_sink(placement);
-        font.outline(crate::text::sfnt::GlyphId(glyph), &mut sink, &mut scratch)
+        font.outline(
+            crate::text::sfnt::GlyphId(glyph),
+            crate::text::synthetic::SyntheticStyle::default(),
+            &mut sink,
+            &mut scratch,
+        )
     };
 
     assert!(matches!(
