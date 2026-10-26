@@ -10,6 +10,7 @@ use xbox360_draw::image::Image;
 use xbox360_draw::texture::TextureSlots;
 use xbox360_draw::texture::TextureStore;
 
+use super::cache::glyph_slot_width;
 use super::*;
 use crate::text::sfnt::Font;
 
@@ -759,6 +760,11 @@ fn typeface_lookup() {
 }
 
 #[test]
+fn glyph_slot_width_uses_the_bounds_width_before_rounding() {
+    assert_eq!(glyph_slot_width(1, 10, 0.99), 16);
+}
+
+#[test]
 fn cache_overflow_clears_once() {
     let fonts = library();
     let mut renderer = TextRenderer::new();
@@ -949,7 +955,7 @@ fn failed_glyphs_draw_nothing_and_the_rest_draws() {
 }
 
 #[test]
-fn glyph_cache_pages_are_bounded() {
+fn glyph_cache_adds_pages_without_dropping_glyphs() {
     let fonts = library();
     let mut renderer = TextRenderer::new();
     let mut store = Store::default();
@@ -964,7 +970,7 @@ fn glyph_cache_pages_are_bounded() {
         .layout(&fonts, &request, &mut store, &mut quads)
         .expect("layout succeeds");
 
-    assert_eq!((quads.len(), store.live), (64, 8));
+    assert_eq!((quads.len(), store.live), (80, 10));
 }
 
 #[test]

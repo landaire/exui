@@ -206,13 +206,15 @@ impl ClassTraits {
             {
                 traits.lays_out_children = true;
             }
-            let content: [(&ClassDef, ContentKind); 6] = [
+            let content: [(&ClassDef, ContentKind); 8] = [
                 (&xui::XUI_FIGURE, ContentKind::Figure),
                 (&xui::XUI_IMAGE, ContentKind::Image),
                 (&xui::XUI_IMAGE_PRESENTER, ContentKind::ImagePresenter),
                 (&xui::XUI_NINE_GRID, ContentKind::NineGrid),
                 (&xui::XUI_TEXT, ContentKind::Text),
                 (&xui::XUI_TEXT_PRESENTER, ContentKind::TextPresenter),
+                (&xui::XUI_HTML_ELEMENT, ContentKind::HtmlElement),
+                (&xui::XUI_HTML_PRESENTER, ContentKind::HtmlPresenter),
             ];
             if let Some((_, kind)) = content.into_iter().find(|(candidate, _)| is(candidate)) {
                 traits.content = kind;
@@ -234,6 +236,8 @@ pub enum ContentKind {
     NineGrid,
     Text,
     TextPresenter,
+    HtmlElement,
+    HtmlPresenter,
 }
 
 /// Snapshot taken by `XuiElement_CaptureDesignLayout`.

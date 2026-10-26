@@ -302,7 +302,9 @@ Kinsoku table (0x9279ac78, 147 entries in binary order, binary search in `XuiFon
 
 RE status: partial.
 
-- Glyphs are rasterized on demand into the per-font A8 cache texture (`XuiFont_CacheGlyph` 0x921814c8). Cell width = ceil(advance) + 7 rounded up to a multiple of 16; cells have 2-3 texels of padding. UVs = cell / cache size.
+- Glyphs are rasterized on demand into the per-font A8 cache texture (`XuiFont_CacheGlyph` 0x921818C8). Slot width is `ceil(glyph bounds width) + 7`, rounded up to a multiple of 16. The image starts at `(slot x + 3, row y + 2)`, or one texel farther right for code U+FFFE. Its width is `ceil(glyph bounds width) + 1` and its height is `row height - 4`. UVs use those image bounds divided by the cache size.
+- Allocation first takes an exact or smallest fitting free block (`0x92181380`). On failure it evicts a reusable glyph block and splits the remainder (`0x921811A8`), sweeps reusable blocks (`0x92181300`), then creates another cache texture (`0x92181698`) if no block can be reclaimed. `XuiFont_CacheGlyph` retries after each stage.
+- The glyph record stores the float bounds width and `ceil(advanceWidth * pixelSize / unitsPerEm)`. Drawing uses `floor(glyf xMin in pixels)` as the x bearing (`0x92182108` to `0x92182158`).
 - Antialiasing: outlines are scan converted at 8x vertical oversampling; `XuiFont_DownsampleRows` (0x92188d40) sums 8 sub-rows of per-pixel coverage bytes (saturating) and multiplies by 4, so alpha = min(255, 4 * covered subsamples), 0..64 subsamples per pixel ([INFERENCE] 8 horizontal subsamples per byte from the 8x scaling of glyph metrics).
 - Quads (16-byte vertices: x, y, u, v) are drawn as QUADLIST with VS2. Outline glyphs use PS3, or PS4 when style 0x1 is set. For PS4, let `t0` be glyph-cache alpha at the quad UV, `t1` the alpha at `UV - (1/cacheW, 1/cacheH)`, `g = t0 * ColorFactor.a`, and `s = t1 * ShadowColor.a`. The output alpha is `1 - (1 - g)(1 - s)`. Premultiplied RGB is `t0 * ColorFactor.rgb + s(1 - g) * ShadowColor.rgb`. Sampling up and left makes the shadow appear one pixel down and right at native scale. ShadowColor is DropShadowColor with alpha multiplied by color-factor alpha. Bitmap glyphs (record flag +0x1c) use PS1 with ColorFactor = `(1, 1, 1, cf.A)` and no PS4 shadow.
 - Sampling of the glyph cache uses the DC defaults (linear filtering).
@@ -334,13 +336,11 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 
 [INFERENCE] choices of exui-runtime where the binary was not traced:
 
-- The float advance is `advanceWidth * pixelSize / unitsPerEm`, not pre-rounded at 8x.
-- Glyph x bearing = floor(glyf xMin in pixels); glyph width = xMax in pixels - bearing. The image sits one texel inside its cache cell. A cell is widened when the image does not fit ceil(advance) + 7 rounded to 16.
 - Glyphs from the fallback font use the primary font's ascent.
 - 0x92182370 returns the width of the whole line up to NUL, CR or LF.
 - The 0x2000 measurer (0x92182f30) is the same NextLine loop without line limit and without restart.
 - A next-line position at NUL ends the text (no empty last line). A line that consumes no characters (first character wider than the rect) ends the text.
-- When a font's cache texture is full, a further texture is used for the rest of the frame; the whole cache is cleared before the font is used in a later frame. The binary evicts within the frame (`XuiFont_CacheGlyph` retries after an evict step and a reset step).
+- The runtime retains cache textures referenced by its deferred draw list. When a cache page is full, it uses the original allocation path's final step and adds a page for the rest of the frame. All glyphs remain valid until submission, and an overflowed cache is cleared before later-frame use.
 - Drop shadows use the PS4 composition in the glyph's existing quad and sample one cache texel up and left.
 - Style bit 0x8 is not reproduced. Composite glyphs with point-matched placement are rejected.
 - The bold normalization and line intersection use exact f32 `1 / sqrt` and division where the original refines VMX estimates (`vrsqrtefp` with one Newton step, `vrefp` with two); results can differ when a value lies within rounding error of a truncation boundary.
@@ -348,4 +348,4 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 
 ## Open questions
 
-- Meaning of style bit 0x8 (code 0xFFFE in `XuiFont_CacheGlyph` 0x921814c8 and `XuiFont_GetGlyph` 0x92181c08) and of 0x8000. Neither appears in a genuine 6717 scene.
+- Meaning of style bit 0x8 (code 0xFFFE in `XuiFont_CacheGlyph` 0x921818C8 and the glyph lookup path) and of 0x8000. Neither appears in a genuine 6717 scene.

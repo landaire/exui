@@ -138,16 +138,22 @@ impl Content {
                 no_center: false,
                 texture: None,
             })),
-            ContentKind::Text | ContentKind::TextPresenter => Self::Text(Box::new(TextContent {
-                text: None,
-                color: Color::from_argb(0),
-                shadow_color: Color::from_argb(0),
-                point_size: 0.0,
-                font: None,
-                style: 0,
-                line_spacing_adjust: 0,
-                data_association: 0,
-            })),
+            ContentKind::Text
+            | ContentKind::TextPresenter
+            | ContentKind::HtmlElement
+            | ContentKind::HtmlPresenter => {
+                let html = matches!(kind, ContentKind::HtmlElement | ContentKind::HtmlPresenter);
+                Self::Text(Box::new(TextContent {
+                    text: None,
+                    color: Color::from_argb(if html { 0xff00_0000 } else { 0 }),
+                    shadow_color: Color::from_argb(0),
+                    point_size: if html { 14.0 } else { 0.0 },
+                    font: None,
+                    style: 0,
+                    line_spacing_adjust: 0,
+                    data_association: 0,
+                }))
+            }
         }
     }
 

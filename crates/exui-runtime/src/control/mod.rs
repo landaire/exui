@@ -59,6 +59,7 @@ pub enum Builtin {
     RadioButton,
     RadioGroup,
     TextPresenter,
+    HtmlPresenter,
     ImagePresenter,
     Image,
     Visual,
@@ -94,6 +95,7 @@ impl Builtin {
             "XuiRadioButton" => Self::RadioButton,
             "XuiRadioGroup" => Self::RadioGroup,
             "XuiTextPresenter" => Self::TextPresenter,
+            "XuiHtmlPresenter" => Self::HtmlPresenter,
             "XuiImagePresenter" => Self::ImagePresenter,
             "XuiImage" => Self::Image,
             "XuiVisual" => Self::Visual,
@@ -132,6 +134,7 @@ impl Builtin {
             Self::RadioButton => "XuiRadioButton",
             Self::RadioGroup => "XuiRadioGroup",
             Self::TextPresenter => "XuiTextPresenter",
+            Self::HtmlPresenter => "XuiHtmlPresenter",
             Self::ImagePresenter => "XuiImagePresenter",
             Self::Image => "XuiImage",
             Self::Visual => "XuiVisual",
@@ -184,6 +187,9 @@ pub enum ClassState {
     Prefix(Option<alloc::rc::Rc<[u16]>>),
     TextPresenter {
         owner: Option<ElementId>,
+        html_version: Option<u32>,
+        html_association: Option<u32>,
+        html_text: Option<alloc::rc::Rc<[u16]>>,
     },
     MessageBox(MessageBoxState),
     Transition(Box<TransitionState>),
@@ -274,7 +280,12 @@ impl Context<'_, '_> {
                     Builtin::ProgressBar => ClassState::Progress(Box::new(ProgressState::new())),
                     Builtin::Sound | Builtin::SoundXAudio => ClassState::Sound(SoundState::new()),
                     Builtin::Visual | Builtin::Canvas => ClassState::Prefix(None),
-                    Builtin::TextPresenter => ClassState::TextPresenter { owner: None },
+                    Builtin::TextPresenter | Builtin::HtmlPresenter => ClassState::TextPresenter {
+                        owner: None,
+                        html_version: None,
+                        html_association: None,
+                        html_text: None,
+                    },
                     Builtin::MessageBox => ClassState::MessageBox(MessageBoxState::new()),
                     Builtin::Transition => ClassState::Transition(Box::default()),
                     Builtin::Edit => ClassState::Edit(Box::new(edit::EditState::new())),
@@ -325,7 +336,9 @@ pub(crate) fn handle(
         Builtin::Visual => visual::on_visual(cx, element, message),
         Builtin::Canvas => visual::on_canvas(cx, element, message),
         Builtin::Transition => visual::on_transition(cx, element, message),
-        Builtin::TextPresenter => text::on_text_presenter(cx, element, message),
+        Builtin::TextPresenter | Builtin::HtmlPresenter => {
+            text::on_text_presenter(cx, element, message)
+        }
         Builtin::ImagePresenter => {}
         Builtin::Image => image::on_image(cx, element, message),
         Builtin::MessageBox => text::on_message_box(cx, element, message),

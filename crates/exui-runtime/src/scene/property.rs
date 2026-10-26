@@ -391,6 +391,8 @@ enum Field {
     Text(TextProp),
     TextPresenterAssociation,
     Image(ImageProp),
+    HtmlElementText,
+    HtmlPresenterAssociation,
     ImagePresenterAssociation,
     NineGrid(NineGridProp),
 }
@@ -436,6 +438,12 @@ fn locate(def: &'static PropDef) -> Option<Field> {
     }
     if let Some(index) = position_in(&xui::XUI_TEXT_PRESENTER, def) {
         return TEXT_PRESENTER_FIELDS.get(index).copied();
+    }
+    if position_in(&xui::XUI_HTML_ELEMENT, def).is_some() {
+        return Some(Field::HtmlElementText);
+    }
+    if position_in(&xui::XUI_HTML_PRESENTER, def).is_some() {
+        return Some(Field::HtmlPresenterAssociation);
     }
     if let Some(index) = position_in(&xui::XUI_IMAGE, def) {
         return ImageProp::from_position(index).map(Field::Image);
@@ -521,6 +529,20 @@ pub(crate) fn store_field(
             Ok(Stored::Handled(Effect::None))
         }
         Field::TextPresenterAssociation => {
+            let Content::Text(text) = &mut element.content else {
+                return Err(not_on_class);
+            };
+            text.data_association = value.unsigned(def)?;
+            Ok(Stored::Handled(Effect::None))
+        }
+        Field::HtmlElementText => {
+            let Content::Text(text) = &mut element.content else {
+                return Err(not_on_class);
+            };
+            text.text = value.string(def)?;
+            Ok(Stored::Handled(Effect::None))
+        }
+        Field::HtmlPresenterAssociation => {
             let Content::Text(text) = &mut element.content else {
                 return Err(not_on_class);
             };
@@ -641,6 +663,7 @@ pub(crate) fn fetch_string<'e>(
             element.control.as_ref()?.image_path.as_deref()
         }
         (Field::Text(TextProp::Text), Content::Text(text)) => text.text.as_deref(),
+        (Field::HtmlElementText, Content::Text(text)) => text.text.as_deref(),
         (Field::Text(TextProp::Font), Content::Text(text)) => text.font.as_deref(),
         (Field::Image(ImageProp::ImagePath), Content::Image(image)) => image.path.as_deref(),
         (Field::NineGrid(NineGridProp::TextureFileName), Content::NineGrid(grid)) => {
@@ -698,6 +721,9 @@ pub(crate) fn fetch_value(
             TextProp::Text | TextProp::Font => None,
         },
         (Field::TextPresenterAssociation, Content::Text(text)) => {
+            Some(PropValue::Unsigned(text.data_association))
+        }
+        (Field::HtmlPresenterAssociation, Content::Text(text)) => {
             Some(PropValue::Unsigned(text.data_association))
         }
         (Field::Image(ImageProp::SizeMode), Content::Image(image)) => {

@@ -113,6 +113,7 @@ pub struct RenderScratch {
     triangles: Vec<[u32; 3]>,
     strip: Vec<[f32; 2]>,
     quads: Vec<GlyphQuad>,
+    html: Vec<u16>,
 }
 
 /// Draws `root` and its shown descendants in document order. `view` maps
@@ -187,9 +188,10 @@ fn draw_queued(
                 push_children(tree, id, state, stack);
             }
             ContentKind::NineGrid => draw_nine_grid(tree, id, &state, context, painter, scratch)?,
-            ContentKind::Text | ContentKind::TextPresenter => {
-                draw_text(tree, id, &state, context, painter, scratch)?
-            }
+            ContentKind::Text
+            | ContentKind::TextPresenter
+            | ContentKind::HtmlElement
+            | ContentKind::HtmlPresenter => draw_text(tree, id, &state, context, painter, scratch)?,
         }
     }
 
@@ -846,7 +848,11 @@ fn draw_text(
         presenters,
         ..
     } = context;
-    let source = if element.traits.content == ContentKind::TextPresenter {
+    let kind = element.traits.content;
+    let source = if matches!(
+        kind,
+        ContentKind::TextPresenter | ContentKind::HtmlPresenter
+    ) {
         presenters.source_text(tree, id)
     } else {
         props.text.as_deref().map(|text| crate::scene::SourceText {
@@ -862,6 +868,16 @@ fn draw_text(
     if source.text.is_empty() {
         return Ok(());
     }
+    let rendered_text: &[u16] =
+        if matches!(kind, ContentKind::HtmlElement | ContentKind::HtmlPresenter) {
+            crate::scene::html::plain_text(&source.text, &mut scratch.html);
+            &scratch.html
+        } else {
+            &source.text
+        };
+    if rendered_text.is_empty() {
+        return Ok(());
+    }
 
     // XuiText_Draw: color factor' = color factor * TextColor.
     let factor = modulate(state.color_factor, props.color.argb());
@@ -873,7 +889,7 @@ fn draw_text(
         straight_rgba((shadow & 0x00ff_ffff) | (alpha << 24))
     });
     let request = TextRequest {
-        text: &source.text,
+        text: rendered_text,
         typeface: props.font.as_deref(),
         point_size: source.point_size.unwrap_or(props.point_size),
         style: TextStyle(style),

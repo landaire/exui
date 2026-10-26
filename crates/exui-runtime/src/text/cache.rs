@@ -295,23 +295,22 @@ impl FontInstance {
             (libm::ceilf(bounds.x_max as f32 * pixel_scale - left) as u32).saturating_add(1);
         let height = self.cell_height();
         let page_size = self.page_size.get();
-        if width.saturating_add(2) > page_size {
+        let slot_width = glyph_slot_width(bounds.x_min, bounds.x_max, pixel_scale);
+        if slot_width > page_size {
             return Err(GlyphCacheError::TooLarge {
                 width,
                 height,
                 page_size,
             });
         }
-
-        // Cell widths follow XUI's ceil(advance) + 7 rounded to 16,
-        // widened for images wider than the advance.
-        let slot_width = (record.advance as u32 + 7)
-            .next_multiple_of(16)
-            .max((width + 2).next_multiple_of(16));
         let slot = self.allocate(slot_width, frame)?;
 
         let stride = page_size as usize;
-        let origin = slot.y as usize * stride + slot.x as usize;
+        // The glyph image starts three texels into its slot and two rows
+        // below the cache row.
+        let image_x = slot.x + 3;
+        let image_y = slot.y + 2;
+        let origin = image_y as usize * stride + image_x as usize;
         let page = &mut self.pages[slot.page as usize];
         scratch.rasterizer.fill(
             left as i32,
@@ -325,8 +324,8 @@ impl FontInstance {
 
         Ok(CellState::Cached(Cell {
             page: slot.page,
-            x: slot.x as u16,
-            y: slot.y as u16,
+            x: image_x as u16,
+            y: image_y as u16,
             left: left as i16,
             width: width as u16,
         }))
@@ -366,15 +365,13 @@ impl FontInstance {
     }
 
     /// Reserves a cell `width` texels wide. Rows are `ceil(line height) + 5`
-    /// texels tall and images start one texel inside their cell.
+    /// texels tall.
     ///
-    /// Not 1:1: XUI evicts cells within the frame when its one cache
-    /// texture is full. Cells here stay valid for the frame's draw list, so
-    /// further pages are added for the rest of the frame, up to
-    /// `MAX_PAGES`; past that a glyph is not cached in that frame.
+    /// The original first evicts cells that are no longer referenced by its
+    /// submitted draw batches, then adds a texture if none can be reclaimed.
+    /// A draw list retains every cell until the frame is submitted, so each
+    /// overflow uses a further texture.
     fn allocate(&mut self, width: u32, frame: u32) -> Result<Slot, GlyphCacheError> {
-        const MAX_PAGES: usize = 8;
-
         let page_size = self.page_size.get();
         let row_height = (libm::ceilf(self.line_height) as u32).saturating_add(5);
         if width > page_size || row_height > page_size {
@@ -394,8 +391,8 @@ impl FontInstance {
             if page.cursor_y + row_height <= page_size {
                 let slot = Slot {
                     page: self.current_page as u16,
-                    x: page.cursor_x + 1,
-                    y: page.cursor_y + 1,
+                    x: page.cursor_x,
+                    y: page.cursor_y,
                 };
                 page.cursor_x += width;
                 return Ok(slot);
@@ -408,7 +405,7 @@ impl FontInstance {
             self.overflow_frame = Some(frame);
         }
 
-        if self.pages.len() >= MAX_PAGES {
+        if self.pages.len() > usize::from(u16::MAX) {
             return Err(GlyphCacheError::Full {
                 pages: self.pages.len(),
             });
@@ -421,10 +418,18 @@ impl FontInstance {
 
         Ok(Slot {
             page: self.current_page as u16,
-            x: 1,
-            y: 1,
+            x: 0,
+            y: 0,
         })
     }
+}
+
+pub(super) fn glyph_slot_width(x_min: i16, x_max: i16, pixel_scale: f32) -> u32 {
+    // XUI allocates ceil(image width - 1) + 7 texels, rounded to 16.
+    let width = i32::from(x_max) - i32::from(x_min);
+    (libm::ceilf(width as f32 * pixel_scale) as u32)
+        .saturating_add(7)
+        .next_multiple_of(16)
 }
 
 /// Image origin of a reserved cell.

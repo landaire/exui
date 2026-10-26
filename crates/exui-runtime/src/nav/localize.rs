@@ -371,7 +371,7 @@ fn value_text(value: &PropValue) -> Option<Vec<u16>> {
 
 /// `0x92140EE8`: text as a value of the property's type. Empty text is the
 /// null string; numbers are read like `swscanf` `%f`, `%d` and `%u`.
-fn text_value(text: &[u16], def: &PropDef) -> Option<PropValue> {
+pub(crate) fn text_value(text: &[u16], def: &PropDef) -> Option<PropValue> {
     let value = match def.ty.scalar()? {
         ScalarType::String => {
             PropValue::String((!text.is_empty()).then(|| text.to_vec().into_boxed_slice()))

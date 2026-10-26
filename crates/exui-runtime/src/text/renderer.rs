@@ -1,6 +1,5 @@
 use alloc::vec::Vec;
 
-use xbox360_draw::draw::Rgba8;
 use xbox360_draw::draw::TextureId;
 use xbox360_draw::texture::TextureStore;
 

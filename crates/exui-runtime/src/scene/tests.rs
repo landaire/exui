@@ -640,13 +640,13 @@ fn add_scene_section(registry: &Registry, scene: &Obj, provider: &mut MapProvide
 
 /// Renders `scene` (authored on a 1120x720 canvas) scaled to a `width` x
 /// `height` target.
-fn render_scene(
+fn render_scene_pixels(
     registry: Registry,
     scene: &Obj,
     mut provider: MapProvider,
     width: u32,
     height: u32,
-) -> String {
+) -> Vec<Rgba8> {
     add_scene_section(&registry, scene, &mut provider);
 
     let mut ui = Ui::new(registry, &provider, DisplaySize { width, height });
@@ -655,7 +655,7 @@ fn render_scene(
         height as f32 / 720.0,
         1.0,
     ));
-    ui.set_clear_color(Some(xbox360_draw::draw::Rgba8::new(0, 0, 0, 0xff)));
+    ui.set_clear_color(Some(Rgba8::new(0, 0, 0, 0xff)));
     let root = ui
         .load_scene("section://0,test#", "scene.xur")
         .expect("scene loads");
@@ -666,7 +666,71 @@ fn render_scene(
     let mut list = DrawList::new();
     ui.draw(&mut renderer, &mut list).expect("draw");
 
-    pixel_dump(&rasterize(&mut renderer, &list, width, height), width)
+    rasterize(&mut renderer, &list, width, height)
+}
+
+fn render_scene(
+    registry: Registry,
+    scene: &Obj,
+    provider: MapProvider,
+    width: u32,
+    height: u32,
+) -> String {
+    pixel_dump(
+        &render_scene_pixels(registry, scene, provider, width, height),
+        width,
+    )
+}
+
+#[test]
+fn render_nested_effect_targets_and_color_write_masks() {
+    let registry = registry();
+    let solid = |color: u32| {
+        fill(vec![
+            ("FillType", V::Unsigned(1)),
+            ("FillColor", V::Color(color)),
+        ])
+    };
+    let scene = sized("XuiCanvas", 1120.0, 720.0)
+        .child(figure(1120.0, 720.0, 0.0, 0.0).with(&xui::XUI_FIGURE, "Fill", solid(0xff10_2040)))
+        .child(
+            sized("XuiGroup", 300.0, 200.0)
+                .with(
+                    &xui::XUI_ELEMENT,
+                    "Position",
+                    V::Vector([100.0, 100.0, 0.0]),
+                )
+                .with(&xui::XUI_ELEMENT, "EnableEffects", V::Bool(true))
+                .child(figure(300.0, 200.0, 0.0, 0.0).with(
+                    &xui::XUI_FIGURE,
+                    "Fill",
+                    solid(0xffff_0000),
+                ))
+                .child(
+                    sized("XuiGroup", 100.0, 100.0)
+                        .with(&xui::XUI_ELEMENT, "Position", V::Vector([100.0, 50.0, 0.0]))
+                        .with(&xui::XUI_ELEMENT, "EnableEffects", V::Bool(true))
+                        .child(figure(100.0, 100.0, 0.0, 0.0).with(
+                            &xui::XUI_FIGURE,
+                            "Fill",
+                            solid(0xff00_ff00),
+                        )),
+                ),
+        )
+        .child(
+            figure(200.0, 200.0, 500.0, 100.0)
+                .with(&xui::XUI_ELEMENT, "ColorWriteFlags", V::Unsigned(1))
+                .with(&xui::XUI_FIGURE, "Fill", solid(0xfff0_0000)),
+        );
+
+    let width = 112;
+    let pixels = render_scene_pixels(registry, &scene, MapProvider::default(), width, 72);
+    let pixel = |x: usize, y: usize| pixels[y * width as usize + x];
+
+    assert_eq!(pixel(5, 5), Rgba8::new(0x10, 0x20, 0x40, 0xff));
+    assert_eq!(pixel(15, 15), Rgba8::new(0xff, 0x00, 0x00, 0xff));
+    assert_eq!(pixel(25, 20), Rgba8::new(0x00, 0xff, 0x00, 0xff));
+    assert_eq!(pixel(55, 15), Rgba8::new(0xf0, 0x20, 0x40, 0xff));
 }
 
 impl MapProvider {

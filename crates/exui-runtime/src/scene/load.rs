@@ -6,6 +6,7 @@ use core::num::NonZeroU32;
 use exui_core::Document;
 use exui_core::Registry;
 use exui_core::custom::FigurePoints;
+use exui_core::schema::ClassId;
 use exui_core::schema::PropDef;
 use exui_core::schema::xui;
 use exui_core::xur::ObjectRef;
@@ -20,14 +21,29 @@ use crate::scene::LoadIndex;
 use crate::scene::PropValue;
 use crate::scene::PropertyError;
 
+/// A skin string-table replacement for `ClassOverride`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LocalizedClass {
+    /// No replacement exists; use the authored property.
+    Authored,
+    /// The replacement names no registered class; use the authored class.
+    Unknown,
+    /// The replacement names this registered class.
+    Override(ClassId),
+}
+/// A skin string-table replacement for one scalar property.
+#[derive(Clone, Debug)]
+pub(crate) struct LocalizedProperty {
+    pub(crate) def: &'static PropDef,
+    pub(crate) value: PropValue,
+}
+
 /// Creates a detached element tree for `object` and its descendants. Each
 /// element is created with its class defaults, receives its loaded
-/// properties in file order and is then attached to its parent (which
-/// captures its design layout), parents before children [INFERENCE: the
-/// instantiation pass was not traced; this order keeps every capture
-/// against the parent's loaded size]. Every element gets its
-/// [`LoadIndex`]. `visit` sees every element after its whole subtree
-/// exists, parents first. Every element gets `base`.
+/// properties in file order and is then attached to its parent before its
+/// children are created. Every element gets its [`LoadIndex`]. `visit` sees
+/// every element after the whole tree exists, parents first. Every element
+/// gets `base`.
 pub fn instantiate<'d, 'a>(
     tree: &mut ElementTree,
     registry: &Registry,
@@ -36,9 +52,49 @@ pub fn instantiate<'d, 'a>(
     base: Option<BasePathId>,
     visit: &mut dyn FnMut(&mut ElementTree, ElementId, ObjectRef<'d, 'a>),
 ) -> Result<ElementId, LoadError> {
-    let root = create(tree, registry, document, object, base)?;
+    instantiate_with_properties(
+        tree,
+        registry,
+        document,
+        object,
+        base,
+        &mut |_| LocalizedClass::Authored,
+        &mut |_| Vec::new(),
+        visit,
+    )
+}
+
+/// `localized_properties` replaces authored scalar properties in place and
+/// supplies localized properties that were not authored.
+pub(crate) fn instantiate_with_properties<'d, 'a>(
+    tree: &mut ElementTree,
+    registry: &Registry,
+    document: &'d Document<'a>,
+    object: ObjectRef<'d, 'a>,
+    base: Option<BasePathId>,
+    localized_class: &mut dyn FnMut(ObjectRef<'d, 'a>) -> LocalizedClass,
+    localized_properties: &mut dyn FnMut(ObjectRef<'d, 'a>) -> Vec<LocalizedProperty>,
+    visit: &mut dyn FnMut(&mut ElementTree, ElementId, ObjectRef<'d, 'a>),
+) -> Result<ElementId, LoadError> {
+    let root = create(
+        tree,
+        registry,
+        document,
+        object,
+        base,
+        localized_class,
+        localized_properties,
+    )?;
     let mut created = alloc::vec![(root, object)];
-    if let Err(error) = create_descendants(tree, registry, document, base, &mut created) {
+    if let Err(error) = create_descendants(
+        tree,
+        registry,
+        document,
+        base,
+        localized_class,
+        localized_properties,
+        &mut created,
+    ) {
         // Partial trees are not kept.
         let _ = tree.destroy(root);
         return Err(error);
@@ -60,6 +116,8 @@ fn create_descendants<'d, 'a>(
     registry: &Registry,
     document: &'d Document<'a>,
     base: Option<BasePathId>,
+    localized_class: &mut dyn FnMut(ObjectRef<'d, 'a>) -> LocalizedClass,
+    localized_properties: &mut dyn FnMut(ObjectRef<'d, 'a>) -> Vec<LocalizedProperty>,
     created: &mut Vec<(ElementId, ObjectRef<'d, 'a>)>,
 ) -> Result<(), LoadError> {
     let (root, object) = created[0];
@@ -67,7 +125,15 @@ fn create_descendants<'d, 'a>(
     push_children(&mut pending, object, root);
 
     while let Some((current, parent)) = pending.pop() {
-        let element = create(tree, registry, document, current, base)?;
+        let element = create(
+            tree,
+            registry,
+            document,
+            current,
+            base,
+            localized_class,
+            localized_properties,
+        )?;
         if let Err(error) = tree.append_child(parent, element) {
             let _ = tree.destroy(element);
             return Err(error.into());
@@ -112,12 +178,14 @@ fn push_children<'d, 'a>(
 }
 
 /// One element with its properties, before it is attached.
-fn create(
+fn create<'d, 'a>(
     tree: &mut ElementTree,
     registry: &Registry,
-    document: &Document<'_>,
-    object: ObjectRef<'_, '_>,
+    document: &'d Document<'a>,
+    object: ObjectRef<'d, 'a>,
     base: Option<BasePathId>,
+    localized_class: &mut dyn FnMut(ObjectRef<'d, 'a>) -> LocalizedClass,
+    localized_properties: &mut dyn FnMut(ObjectRef<'d, 'a>) -> Vec<LocalizedProperty>,
 ) -> Result<ElementId, LoadError> {
     let Some(authored) = registry.class(object.class()) else {
         return Err(LoadError::UnknownClass {
@@ -125,42 +193,66 @@ fn create(
         });
     };
 
-    // ClassOverride: an unknown name is ignored; a class not derived from
-    // the authored one fails the load.
-    let class_override = &xui::XUI_CONTROL.props[0];
-    let class = match object
-        .property(class_override)
-        .and_then(|property| document.value(property))
-        .and_then(Value::as_string)
-        .flatten()
-    {
-        Some(name) => match document
-            .string(name)
+    let authored_override = || {
+        object
+            .property(&xui::XUI_CONTROL.props[0])
+            .and_then(|property| document.value(property))
+            .and_then(Value::as_string)
+            .flatten()
+            .and_then(|name| document.string(name))
             .and_then(|name| registry.find_wide(name))
-            .and_then(|id| registry.class(id))
-        {
-            Some(candidate) if candidate.is_a(authored.id()) => candidate,
-            Some(candidate) => {
-                return Err(LoadError::ClassOverrideNotDerived {
-                    authored: authored.name(),
-                    override_name: candidate.name(),
-                });
-            }
-            None => authored,
-        },
+    };
+    let override_class = match localized_class(object) {
+        LocalizedClass::Authored => authored_override(),
+        LocalizedClass::Unknown => None,
+        LocalizedClass::Override(class) => Some(class),
+    };
+    // An unknown name is ignored; a class not derived from the authored one
+    // fails the load.
+    let class = match override_class.and_then(|class| registry.class(class)) {
+        Some(candidate) if candidate.is_a(authored.id()) => candidate,
+        Some(candidate) => {
+            return Err(LoadError::ClassOverrideNotDerived {
+                authored: authored.name(),
+                override_name: candidate.name(),
+            });
+        }
         None => authored,
     };
 
     let element = tree.create(class);
     tree.set_base_path(element, base)?;
 
+    let mut localized = localized_properties(object);
     let mut path = Vec::new();
     for property in object.properties() {
         path.clear();
         path.push(property.def());
-        if let Err(error) = apply(tree, element, document, property, &mut path) {
+        let result = localized
+            .iter()
+            .position(|replacement| core::ptr::eq(replacement.def, property.def()))
+            .map(|index| {
+                let replacement = localized.remove(index);
+                tree.set_property(element, &[replacement.def], None, replacement.value)
+                    .map_err(|source| LoadError::Property {
+                        name: replacement.def.name,
+                        source,
+                    })
+            })
+            .unwrap_or_else(|| apply(tree, element, document, property, &mut path));
+        if let Err(error) = result {
             let _ = tree.destroy(element);
             return Err(error);
+        }
+    }
+    for replacement in localized {
+        if let Err(source) = tree.set_property(element, &[replacement.def], None, replacement.value)
+        {
+            let _ = tree.destroy(element);
+            return Err(LoadError::Property {
+                name: replacement.def.name,
+                source,
+            });
         }
     }
 

@@ -419,7 +419,7 @@ Vertex order: row1/row0 pairs left to right ((0,T),(0,0),(L,T),(L,0),(W-R,T),(W-
 RE status: partial.
 
 - XuiGroup (0x9215cc68), XuiScene (0x92169720), XuiVisual (0x9215bf68): no drawing of their own; they lay out children on size change (4) and handle focus. XuiCanvas (0x9215ce58) and XuiControl (0x9215aa68) render via the base element path.
-- XuiHtmlElement/Presenter/Control are registered from 0x921c3cf8 with objproc 0x9210c258 (a C++ virtual dispatch thunk); not traced.
+- XuiHtmlElement stores source text directly. XuiHtmlPresenter polls its owner with message 0x7fb and reparses only when the returned version changes. The parser lifecycle and token vocabulary are in xui-controls.md. Per-run formatting, table layout and inline images remain partial.
 - XuiTextureSurface: no class of that name is registered in 6717.
 
 ## Nuances
@@ -452,6 +452,7 @@ RE status: partial.
 - `scene::render` walks the tree and writes an `xbox360-draw` draw list. World, view and the `m[2][3] = 0.001` projection are applied on the CPU: a vertex lands at `(x / w, y / w)` with `w = w0 + 0.001 * z`. ClipChildren planes become a draw-list clip rectangle when they are axis-aligned (pixel-center rule) and are clipped on the CPU otherwise.
 - Render pass 1 is a draw-list target pass per EnableEffects element, in pass-1 order, before the frame commands. The element owns a render target texture (`TextureStore::create_target`, straight texels, allocated and grown as in 0x92185648). The children are walked from an identity parent matrix with an identity view, which equals `child.local * world * Inverse(world)`. Message 0 of the element draws the target quad of 0x92185a50 instead of its children. ColorWriteFlags become the draw-list color write mask.
 - `Ui` owns the registry, resources and the root canvas; the runtime holds the fonts and the text renderer. The DC view transform and the clear color are set by the application.
+- XuiHtmlElement and XuiHtmlPresenter render normalized text through the text renderer. The normalizer decodes the five named entities, emits line breaks and table-cell separation, strips formatting tags and suppresses head, style and script content. It reuses a render scratch buffer.
 
 Deviations and inferences:
 
@@ -460,6 +461,5 @@ Deviations and inferences:
 - BlendMode 2 to 4 use straight vertex colors and unpremultiplied texels (`BlendMode::uses_straight_source`); a texel with alpha 0 has no color left after premultiplied decoding. Figure gradients drawn with these modes are therefore uploaded as straight textures, so their transparent stops keep their color and, inside a target pass, their alpha multiplies the target alpha (the `twist_nitem` edge fades).
 - Triangles with a vertex at `w <= 0` are dropped instead of clipped against the near plane. A ClipChildren rectangle with a corner at `w <= 0` or with no area clips everything.
 - A zero-length figure edge normalizes to the zero vector.
-- Scene image content (paths ending in `.xu?`) is drawn as a plain child of the XuiImage, without size-mode placement.
 - Effect objects (+0x2c list) are not applied to effect targets.
-- The order of property application and attachment during instantiation was not traced; parents get their properties before their children are created.
+- HTML per-run styles, tables, inline images, links and XuiHtmlControl scrolling are not implemented. HTML content is rendered with one text style.

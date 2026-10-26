@@ -1,9 +1,12 @@
 //! Skin registry, visual lookup and control visual creation
 //! (doc/xui-controls.md "Visual and skin resolution").
+#[cfg(test)]
+mod tests;
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::rc::Rc;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use exui_core::Document;
@@ -11,6 +14,10 @@ use exui_core::Registry;
 use exui_core::schema::ClassRef;
 use exui_core::schema::PropDef;
 use exui_core::schema::ScalarType;
+use exui_core::schema::xui;
+use exui_core::value::Color;
+use exui_core::value::Quaternion;
+use exui_core::value::Vector3;
 use exui_core::xur::ObjectId;
 use exui_core::xur::ObjectRef;
 use exui_core::xur::Value;
@@ -21,10 +28,13 @@ use crate::error::SkinError;
 use crate::error::VisualError;
 use crate::message::Body;
 use crate::message::Context;
+use crate::nav::text_value;
+use crate::resource::StringTable;
 use crate::scene;
 use crate::scene::BasePathId;
 use crate::scene::ElementFlags;
 use crate::scene::ElementId;
+use crate::scene::PropValue;
 use crate::timeline::TimelineData;
 use crate::timeline::build_timeline_data;
 
@@ -44,6 +54,16 @@ struct Skin<'p> {
     document: Document<'p>,
     /// Skin file path; visuals resolve relative paths against it.
     base: BasePathId,
+    localized: Vec<LocalizedProperty>,
+    localized_locale: Option<Box<str>>,
+    string_table_path: Option<Box<[u16]>>,
+    prefix: Option<Box<[u16]>>,
+}
+
+struct LocalizedProperty {
+    object: ObjectId,
+    def: &'static PropDef,
+    value: PropValue,
 }
 
 /// The visual map and the skin source records.
@@ -98,6 +118,17 @@ impl<'p> SkinRegistry<'p> {
         base: BasePathId,
         prefix: Option<&[u16]>,
     ) -> Result<SkinIndex, SkinError> {
+        self.load_with_table(registry, bytes, base, prefix, None)
+    }
+
+    fn load_with_table(
+        &mut self,
+        registry: &Registry,
+        bytes: &'p [u8],
+        base: BasePathId,
+        prefix: Option<&[u16]>,
+        table: Option<&StringTable>,
+    ) -> Result<SkinIndex, SkinError> {
         let document = Document::parse(bytes, registry)?;
         let index = SkinIndex(self.skins.len() as u32);
 
@@ -119,7 +150,17 @@ impl<'p> SkinRegistry<'p> {
             keys.push((key.into_boxed_slice(), child.id()));
         }
 
-        self.skins.push(Skin { document, base });
+        let localized = table.map_or_else(Vec::new, |table| {
+            localized_properties(&document, registry, table, prefix)
+        });
+        self.skins.push(Skin {
+            document,
+            base,
+            localized,
+            localized_locale: None,
+            string_table_path: None,
+            prefix: prefix.map(Into::into),
+        });
 
         for (key, object) in keys {
             if self.visuals.iter().any(|(existing, _)| *existing == key) {
@@ -135,6 +176,47 @@ impl<'p> SkinRegistry<'p> {
         }
 
         Ok(index)
+    }
+
+    fn configure_localization(
+        &mut self,
+        skin: SkinIndex,
+        string_table_path: Option<Box<[u16]>>,
+        locale: Option<&str>,
+    ) {
+        let Some(skin) = self.skins.get_mut(skin.0 as usize) else {
+            return;
+        };
+        skin.string_table_path = string_table_path;
+        skin.localized_locale = locale.map(Into::into);
+    }
+
+    fn refresh_localization(
+        &mut self,
+        index: SkinIndex,
+        registry: &Registry,
+        resources: &crate::resource::Resources<'_>,
+    ) {
+        let Some(skin) = self.skins.get(index.0 as usize) else {
+            return;
+        };
+        if skin.localized_locale.as_deref() == resources.locale() {
+            return;
+        }
+        let string_table_path = skin.string_table_path.clone();
+        let table = resources.locale().and_then(|_| {
+            string_table_path
+                .as_deref()
+                .and_then(|path| resources.resolve(path, None).ok())
+                .and_then(|locator| resources.string_table(&locator).ok())
+        });
+        let Some(skin) = self.skins.get_mut(index.0 as usize) else {
+            return;
+        };
+        skin.localized = table.map_or_else(Vec::new, |table| {
+            localized_properties(&skin.document, registry, &table, skin.prefix.as_deref())
+        });
+        skin.localized_locale = resources.locale().map(Into::into);
     }
 
     /// `XuiFreeVisuals`: all visuals (sources kept), or every key starting
@@ -216,6 +298,108 @@ impl<'p> SkinRegistry<'p> {
             object: child.id(),
         })
     }
+}
+
+fn localized_properties(
+    document: &Document<'_>,
+    registry: &Registry,
+    table: &StringTable,
+    prefix: Option<&[u16]>,
+) -> Vec<LocalizedProperty> {
+    let mut localized = Vec::new();
+    let mut pending = Vec::new();
+    let root_prefix = prefix.map(<[u16]>::to_vec).unwrap_or_default();
+    let mut roots: Vec<_> = document.root().children().collect();
+    roots.reverse();
+    pending.extend(
+        roots
+            .into_iter()
+            .map(|object| (object, root_prefix.clone())),
+    );
+
+    while let Some((object, mut key)) = pending.pop() {
+        let Some(class) = registry.class(object.class()) else {
+            continue;
+        };
+        match object_id(document, object) {
+            Some(id) => key.extend_from_slice(&id),
+            None => key.extend(class.name().encode_utf16()),
+        }
+        key.push(u16::from(b'.'));
+
+        for class in class.levels() {
+            for def in class.def().props {
+                if def.ty.scalar().is_none() || def.flags.is_indexed() {
+                    continue;
+                }
+                let property_start = key.len();
+                key.extend(def.name.encode_utf16());
+                if let Some(value) = table
+                    .by_name(&key)
+                    .and_then(|text| skin_text_value(text, def))
+                {
+                    localized.push(LocalizedProperty {
+                        object: object.id(),
+                        def,
+                        value,
+                    });
+                }
+                key.truncate(property_start);
+            }
+        }
+
+        let mut children: Vec<_> = object.children().collect();
+        children.reverse();
+        pending.extend(children.into_iter().map(|child| (child, key.clone())));
+    }
+
+    localized
+}
+
+fn skin_text_value(text: &[u16], def: &PropDef) -> Option<PropValue> {
+    if let Some(value) = text_value(text, def) {
+        return Some(value);
+    }
+
+    let text = String::from_utf16(text).ok()?;
+    let text = text.trim();
+    match def.ty.scalar()? {
+        ScalarType::Bool => match text {
+            "true" => Some(PropValue::Bool(true)),
+            "false" => Some(PropValue::Bool(false)),
+            _ => None,
+        },
+        ScalarType::Color => {
+            let digits = text
+                .strip_prefix("0x")
+                .or_else(|| text.strip_prefix("0X"))?;
+            Some(PropValue::Color(Color::from_argb(
+                u32::from_str_radix(digits, 16).ok()?,
+            )))
+        }
+        ScalarType::Vector => {
+            let [x, y, z] = parse_floats(text)?;
+            Some(PropValue::Vector(Vector3::new(x, y, z)))
+        }
+        ScalarType::Quaternion => {
+            let [x, y, z, w] = parse_floats(text)?;
+            Some(PropValue::Quaternion(Quaternion::new(x, y, z, w)))
+        }
+        ScalarType::Integer
+        | ScalarType::Unsigned
+        | ScalarType::Float
+        | ScalarType::String
+        | ScalarType::Custom => None,
+    }
+}
+
+fn parse_floats<const N: usize>(text: &str) -> Option<[f32; N]> {
+    let mut parts = text.split(',');
+    let mut values = [0.0; N];
+    for value in &mut values {
+        *value = parts.next()?.trim().parse().ok()?;
+    }
+    parts.next().is_none().then_some(values)
 }
 
 /// Elements created by an instantiation, with their objects' timeline
@@ -316,21 +500,57 @@ impl Context<'_, '_> {
         object: SkinObject,
         autoplay: bool,
     ) -> Result<ElementId, VisualError> {
+        self.runtime
+            .skins
+            .refresh_localization(object.skin, self.registry, self.resources);
         self.runtime.load_depth += 1;
         let mut visited: Vec<(ElementId, ObjectId)> = Vec::new();
         let result = {
             let skins = &self.runtime.skins;
             match skins.skins.get(object.skin.0 as usize) {
                 Some(skin) => match skin.document.object(object.object) {
-                    Some(root) => scene::instantiate(
-                        self.tree,
-                        self.registry,
-                        &skin.document,
-                        root,
-                        Some(skin.base),
-                        &mut |_, element, object| visited.push((element, object.id())),
-                    )
-                    .map_err(VisualError::from),
+                    Some(root) => {
+                        let registry = self.registry;
+                        let mut localized_class = |record: ObjectRef<'_, '_>| {
+                            let class_override = &xui::XUI_CONTROL.props[0];
+                            let Some(property) = skin.localized.iter().find(|property| {
+                                property.object == record.id()
+                                    && core::ptr::eq(property.def, class_override)
+                            }) else {
+                                return scene::LocalizedClass::Authored;
+                            };
+                            let PropValue::String(Some(name)) = &property.value else {
+                                return scene::LocalizedClass::Unknown;
+                            };
+                            registry.find_utf16(name).map_or(
+                                scene::LocalizedClass::Unknown,
+                                scene::LocalizedClass::Override,
+                            )
+                        };
+                        let mut localized_properties = |record: ObjectRef<'_, '_>| {
+                            skin.localized
+                                .iter()
+                                .filter(|property| property.object == record.id())
+                                .map(|property| scene::LocalizedProperty {
+                                    def: property.def,
+                                    value: property.value.clone(),
+                                })
+                                .collect()
+                        };
+                        scene::instantiate_with_properties(
+                            self.tree,
+                            self.registry,
+                            &skin.document,
+                            root,
+                            Some(skin.base),
+                            &mut localized_class,
+                            &mut localized_properties,
+                            &mut |_, element, object| {
+                                visited.push((element, object.id()));
+                            },
+                        )
+                        .map_err(VisualError::from)
+                    }
                     None => Err(VisualError::NotFound),
                 },
                 None => Err(VisualError::NotFound),
@@ -347,10 +567,21 @@ impl Context<'_, '_> {
                     object: id,
                 };
                 let timeline = self.skin_timeline(key);
-                let setters = match self.runtime.skins.object_ref(key) {
+                let mut setters = match self.runtime.skins.object_ref(key) {
                     Some(object) => loaded_setters(self.registry, self.tree, element, object),
                     None => Vec::new(),
                 };
+                if let Some(skin) = self.runtime.skins.skins.get(key.skin.0 as usize) {
+                    for property in skin
+                        .localized
+                        .iter()
+                        .filter(|property| property.object == key.object)
+                    {
+                        if !setters.iter().any(|def| core::ptr::eq(*def, property.def)) {
+                            setters.push(property.def);
+                        }
+                    }
+                }
                 Created {
                     element,
                     timeline,
@@ -497,9 +728,37 @@ impl Context<'_, '_> {
             alloc::borrow::Cow::Borrowed(bytes) => bytes,
             alloc::borrow::Cow::Owned(_) => return Err(SkinError::NotMapped),
         };
+        let string_table_path = {
+            let mut units = path.to_vec();
+            units
+                .len()
+                .checked_sub(3)
+                .filter(|&start| start > 0)
+                .map(|start| {
+                    units.truncate(start);
+                    units.extend("xus".encode_utf16());
+                    units.into_boxed_slice()
+                })
+        };
+        let table = self.resources.locale().and_then(|_| {
+            string_table_path
+                .as_deref()
+                .and_then(|path| self.resources.resolve(path, None).ok())
+                .and_then(|locator| self.resources.string_table(&locator).ok())
+        });
 
         let base = self.tree.add_base_path(path);
-        self.runtime.skins.load(self.registry, bytes, base, prefix)
+        let skin = self.runtime.skins.load_with_table(
+            self.registry,
+            bytes,
+            base,
+            prefix,
+            table.as_ref(),
+        )?;
+        self.runtime
+            .skins
+            .configure_localization(skin, string_table_path, self.resources.locale());
+        Ok(skin)
     }
 
     /// `XuiElementSetSkinPrefix` and `XuiBroadcastRecreateVisuals`: sets the

@@ -34,9 +34,17 @@ pub(super) fn on_text_presenter(
     message: &mut Message,
 ) {
     if let Body::Init { .. } = message.body
-        && let Some(ClassState::TextPresenter { owner }) = cx.class_state(element)
+        && let Some(ClassState::TextPresenter {
+            owner,
+            html_version,
+            html_association,
+            html_text,
+        }) = cx.class_state(element)
     {
         *owner = None;
+        *html_version = None;
+        *html_association = None;
+        *html_text = None;
     }
 }
 
@@ -135,23 +143,29 @@ impl Context<'_, '_> {
 
     /// `XuiTextPresenter_GetSourceText` 0x9215c820.
     pub fn presenter_source_text(&mut self, presenter: ElementId) -> PulledText {
-        let style = match self
-            .tree
-            .property(presenter, &[props::text_presenter_style()], None)
-        {
-            Some(PropValue::Unsigned(style)) => style,
-            _ => 0,
+        let html = self.is_builtin_a(presenter, Builtin::HtmlPresenter);
+        let style = if html {
+            0
+        } else {
+            match self
+                .tree
+                .property(presenter, &[props::text_presenter_style()], None)
+            {
+                Some(PropValue::Unsigned(style)) => style,
+                _ => 0,
+            }
         };
 
         let cached = match self.class_state(presenter) {
-            Some(ClassState::TextPresenter { owner }) => *owner,
+            Some(ClassState::TextPresenter { owner, .. }) => *owner,
             _ => None,
         };
         let owner = match cached {
             Some(owner) if self.tree.contains(owner) => Some(owner),
             _ => {
                 let owner = self.find_owner_control(presenter);
-                if let Some(ClassState::TextPresenter { owner: slot }) = self.class_state(presenter)
+                if let Some(ClassState::TextPresenter { owner: slot, .. }) =
+                    self.class_state(presenter)
                 {
                     *slot = owner;
                 }
@@ -169,14 +183,60 @@ impl Context<'_, '_> {
             };
         };
 
-        let association =
-            match self
-                .tree
-                .property(presenter, &[props::text_presenter_data_association()], None)
-            {
-                Some(PropValue::Unsigned(association)) => association,
-                _ => 0,
+        let association_def = if html {
+            props::html_presenter_data_association()
+        } else {
+            props::text_presenter_data_association()
+        };
+        let association = match self.tree.property(presenter, &[association_def], None) {
+            Some(PropValue::Unsigned(association)) => association,
+            _ => 0,
+        };
+
+        if html {
+            let message = self.send_body(
+                owner,
+                Body::GetTextVersion {
+                    version: 0,
+                    item: 0,
+                    association,
+                    text: None,
+                },
+            );
+            let Body::GetTextVersion { version, text, .. } = message.body else {
+                return PulledText {
+                    text: None,
+                    point_size: None,
+                    style,
+                    y_offset: 0.0,
+                };
             };
+            let Some(ClassState::TextPresenter {
+                html_version,
+                html_association,
+                html_text,
+                ..
+            }) = self.class_state(presenter)
+            else {
+                return PulledText {
+                    text,
+                    point_size: None,
+                    style,
+                    y_offset: 0.0,
+                };
+            };
+            if *html_version != Some(version) || *html_association != Some(association) {
+                *html_version = Some(version);
+                *html_association = Some(association);
+                *html_text = text;
+            }
+            return PulledText {
+                text: html_text.clone(),
+                point_size: None,
+                style,
+                y_offset: 0.0,
+            };
+        }
 
         let message = self.send_body(
             owner,
@@ -290,7 +350,9 @@ impl Context<'_, '_> {
                 continue;
             }
 
-            if self.is_builtin_a(element, Builtin::TextPresenter) {
+            if self.is_builtin_a(element, Builtin::TextPresenter)
+                || self.is_builtin_a(element, Builtin::HtmlPresenter)
+            {
                 let pulled = self.presenter_source_text(element);
                 source.texts.insert(element, pulled);
             } else if self.is_builtin_a(element, Builtin::ImagePresenter) {

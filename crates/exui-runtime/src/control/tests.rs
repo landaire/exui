@@ -31,6 +31,7 @@ use crate::message::TraceEvent;
 use crate::resource::Resources;
 use crate::scene::ElementId;
 use crate::scene::ElementTree;
+use crate::scene::PropValue;
 use crate::test_support::MapProvider;
 use crate::test_support::Obj;
 use crate::test_support::V;
@@ -1072,6 +1073,119 @@ fn image_scene_content_is_placed_by_size_mode() {
             mode.0
         );
     }
+}
+
+static TEST_HTML_OWNER: ClassDef = ClassDef::new("TestHtmlOwner", Some("XuiControl"), &[]);
+
+struct HtmlOwner {
+    association: Rc<Cell<u32>>,
+    version: Rc<Cell<u32>>,
+    text: Rc<RefCell<&'static str>>,
+}
+
+impl ClassBehavior for HtmlOwner {
+    fn on_message(&self, _cx: &mut Context<'_, '_>, _element: ElementId, message: &mut Message) {
+        if let Body::GetTextVersion {
+            version,
+            association,
+            text,
+            ..
+        } = &mut message.body
+        {
+            self.association.set(*association);
+            *version = self.version.get();
+            *text = Some(Rc::from(
+                self.text.borrow().encode_utf16().collect::<Vec<_>>(),
+            ));
+            message.handled = true;
+        }
+    }
+}
+
+#[test]
+fn html_presenter_pulls_its_associated_control_text() {
+    let mut registry = test_registry();
+    xui::register_html(&mut registry).unwrap();
+    registry.register(&TEST_HTML_OWNER).unwrap();
+    let provider = MapProvider::default();
+    let mut world = World::new(&registry, &provider);
+    let association = Rc::new(Cell::new(0));
+    let version = Rc::new(Cell::new(1));
+    let text = Rc::new(RefCell::new("<b>Dashboard &amp; Guide</b>"));
+    world
+        .runtime
+        .register_behavior(
+            &registry,
+            "TestHtmlOwner",
+            Rc::new(HtmlOwner {
+                association: Rc::clone(&association),
+                version: Rc::clone(&version),
+                text: Rc::clone(&text),
+            }),
+        )
+        .unwrap();
+
+    let scene = Obj::new("TestScene").child(
+        Obj::new("TestHtmlOwner").child(
+            Obj::new("XuiHtmlPresenter")
+                .with(&xui::XUI_ELEMENT, "Id", V::Str("presenter"))
+                .with(&xui::XUI_HTML_PRESENTER, "DataAssociation", V::Unsigned(4)),
+        ),
+    );
+    world.load(&scene, vec![]);
+    let presenter = world.find("presenter");
+    let root = world.root;
+    let mut source = crate::control::RuntimePresenterSource::new();
+
+    world.cx().pull_presenters(root, &mut source);
+
+    assert_eq!(association.get(), 4);
+    assert_eq!(
+        source.texts[&presenter].text.as_deref(),
+        Some(
+            "<b>Dashboard &amp; Guide</b>"
+                .encode_utf16()
+                .collect::<Vec<_>>()
+                .as_slice()
+        )
+    );
+
+    *text.borrow_mut() = "same version";
+    world.cx().pull_presenters(root, &mut source);
+    assert_eq!(
+        source.texts[&presenter].text.as_deref(),
+        Some(
+            "<b>Dashboard &amp; Guide</b>"
+                .encode_utf16()
+                .collect::<Vec<_>>()
+                .as_slice()
+        ),
+        "an unchanged version retains the parsed source"
+    );
+
+    world
+        .tree
+        .set_property(
+            presenter,
+            &[super::props::html_presenter_data_association()],
+            None,
+            PropValue::Unsigned(5),
+        )
+        .unwrap();
+    world.cx().pull_presenters(root, &mut source);
+    assert_eq!(association.get(), 5);
+    assert_eq!(
+        source.texts[&presenter].text.as_deref(),
+        Some("same version".encode_utf16().collect::<Vec<_>>().as_slice()),
+        "a new association invalidates an equal source version"
+    );
+
+    version.set(2);
+    world.cx().pull_presenters(root, &mut source);
+    assert_eq!(
+        source.texts[&presenter].text.as_deref(),
+        Some("same version".encode_utf16().collect::<Vec<_>>().as_slice())
+    );
 }
 
 static TEST_IMAGE_OWNER: ClassDef = ClassDef::new("TestImageOwner", Some("XuiControl"), &[]);

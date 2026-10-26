@@ -888,6 +888,8 @@ Keys in practice: base skin registers `XuiButton`, `XuiScene`, ... (296 top-leve
 
 Status: partial. When a locale is set, `XuiSkin_SetSource` loads `<skin path minus 3 chars>xus` (`XuiPathReplaceExtWithXus` 0x92140b60, `0x92150ab8`). `XuiSkin_ApplyStringTable` (0x92171ba0) walks the registered object tree (`XuiStringTable_ApplyToNodeRecursive` 0x92171a70, `XuiStringTable_ApplyNodeProps` 0x92171970) and builds keys `prefix || Id1 "." Id2 "." ... PropertyName` (format strings `"%s."` 0x9200bf58 and `"%s"` 0x9200bf50; a node without `Id` uses its class name). For every property definition of every class level of the node class it looks the key up (`0x92170c90`) and on a hit replaces the loaded property value (`0x921710f0`). This edits the loaded records, so every element instantiated later gets the localized value.
 
+Port status: done. The runtime loads the adjacent table only when a locale is set, refreshes loaded skin replacements after a locale change, and applies scalar property replacements before child attachment captures the design layout.
+
 ### 2. Skin prefix and base path propagation
 
 Status: complete.
@@ -2654,6 +2656,16 @@ ReapStoppedVoices (0x9214beb8): for each deferred voice whose state bit0 is clea
 Timer sharing: XuiSound (period 0) and XuiSoundXAudio (period 10) use the same (h, 0xaabbccdd) record. XAudio sees each tick first. After a non-looping play XuiSound kills the shared timer, so a finished voice stays allocated until the next play, stop, 0x28 or destroy. For looping sounds the XAudio level releases the finished voice and the XuiSound level then sees "done" and plays again, so there is a gap of at least one tick between loops.
 
 RE status: partial. Proc, volume, timer and lifecycle are complete. The WAVE loader, cache (0x9216fe50, 0x921700b8, 0x92170140) and XAudio library internals are only identified by role.
+
+### XuiHtmlElement and XuiHtmlPresenter
+
+`XuiHtmlElement` owns a Text string at +0x6c. `XuiHtmlPresenter` owns DataAssociation at +0x70 and obtains its source from the nearest control. Its source request at 0x9219bfa8 uses message 0x7fb, which returns a source version and text. An unchanged version retains the parsed document. A changed version resets the parser state at 0x9219bfd8 and rebuilds it through 0x9219c040. Layout and draw preparation starts at 0x9219c218.
+
+The parser token table at 0x92010ec4 through 0x92011244 contains the named entities `nbsp;`, `quot;`, `gt;`, `lt;` and `amp;`; elements `body`, `ds`, `span`, `h3`, `h2`, `h1`, `td`, `tr`, `table`, `br`, `script`, `style`, `head`, `div`, `img` and `font`; and attributes `size`, `color`, `name`, `shadowcolor`, `src`, `width`, `height`, `align`, `middle`, `top`, `text`, `bgcolor`, `link`, `alink`, `vlink`, `href`, `id`, `left`, `center`, `right`, `valign`, `bottom`, `colspan` and `rowspan`.
+
+The reimplementation classifies both HTML element classes as text content. `XuiHtmlPresenter` polls message 0x7fb with DataAssociation and retains the parsed source until its version changes. Before layout, the renderer decodes the five named entities, converts `br` and block boundaries to line breaks, separates table cells, removes formatting tags and suppresses `head`, `style` and `script` content. The scratch text buffer is retained between frames.
+
+RE status: partial. Source polling, parser lifecycle and the token vocabulary are identified. Per-run font and color formatting, table cell layout, images, links, string lookup message 0x809, image resolution message 0x80a and `XuiHtmlControl` scrolling remain open.
 
 ### Nuances
 

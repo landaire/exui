@@ -92,6 +92,9 @@ pub fn image_path() -> &'static PropDef {
 pub fn xui_image_path() -> &'static PropDef {
     def(&xui::XUI_IMAGE, 1)
 }
+pub fn html_presenter_data_association() -> &'static PropDef {
+    def(&xui::XUI_HTML_PRESENTER, 0)
+}
 
 /// `XuiFigure.Fill`.
 pub fn figure_fill() -> &'static PropDef {

@@ -2,6 +2,7 @@
 //! (doc/xui-timelines.md section 7).
 
 mod localize;
+pub(crate) use self::localize::text_value;
 
 use alloc::format;
 use alloc::rc::Rc;
