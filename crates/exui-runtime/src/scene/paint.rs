@@ -57,8 +57,8 @@ pub(crate) struct Brush {
 /// Active clip planes in target pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum Clip {
-    /// Axis-aligned planes: the rasterizer's pixel-center test against the
-    /// plane positions equals this rectangle.
+    /// Axis-aligned planes: the rasterizer's integer target-coordinate test
+    /// against the plane positions equals this rectangle.
     Rect(ClipRect),
     /// Four planes through the corners of a convex quad, in order.
     Quad([[f32; 2]; 4]),
@@ -154,7 +154,7 @@ impl<'l> Painter<'l> {
             let right = a[0].max(c[0]);
             let top = a[1].min(c[1]);
             let bottom = a[1].max(c[1]);
-            let edge = |value: f32| libm::ceilf(value - 0.5) as i32;
+            let edge = |value: f32| libm::ceilf(value) as i32;
             return Clip::Rect(ClipRect {
                 left: edge(left),
                 top: edge(top),
@@ -446,6 +446,29 @@ pub(crate) fn sampler_from_flags(flags: TextureFlags, mapping: TextureMapping) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn axis_aligned_clip_rounds_fractional_edges_for_integer_samples() {
+        let mut list = DrawList::new();
+        let painter = Painter::new(&mut list, Matrix4::IDENTITY);
+        let clip = painter.clip_planes(
+            &Matrix4::translation(10.25, 20.25, 0.0),
+            Size {
+                width: 10.0,
+                height: 10.0,
+            },
+        );
+
+        assert_eq!(
+            clip,
+            Clip::Rect(ClipRect {
+                left: 11,
+                top: 21,
+                right: 21,
+                bottom: 31,
+            })
+        );
+    }
 
     #[test]
     fn modulate_rounds_to_nearest() {

@@ -13,10 +13,10 @@ exui-extension = { workspace = true }
 libm = "0.2"
 thiserror = { workspace = true }
 winnow = { workspace = true, features = ["binary"] }
-xbox360-draw = { git = "https://github.com/landaire/rust-xbox360", rev = "65d51ebd6fee783f88e7eb365137bceeeac0d832" }
-xbox360-image = { git = "https://github.com/landaire/rust-xbox360", rev = "65d51ebd6fee783f88e7eb365137bceeeac0d832" }
+xbox360-draw = { git = "https://github.com/landaire/rust-xbox360", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
+xbox360-image = { git = "https://github.com/landaire/rust-xbox360", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
 zune-inflate = { version = "0.2", default-features = false, features = ["zlib"] }
 
 [dev-dependencies]
 insta = { workspace = true }
-xbox360-raster = { git = "https://github.com/landaire/rust-xbox360", rev = "65d51ebd6fee783f88e7eb365137bceeeac0d832" }
+xbox360-raster = { git = "https://github.com/landaire/rust-xbox360", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
