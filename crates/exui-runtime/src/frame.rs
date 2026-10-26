@@ -19,4 +19,7 @@ pub trait Frame {
         textures: &mut dyn TextureStore,
         list: &mut DrawList,
     ) -> Result<(), FrameError>;
+
+    /// Reports that the preceding draw was presented successfully.
+    fn presented(&mut self) {}
 }
