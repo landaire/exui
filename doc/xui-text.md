@@ -306,6 +306,7 @@ RE status: partial.
 - Antialiasing: outlines are scan converted at 8x vertical oversampling; `XuiFont_DownsampleRows` (0x92188d40) sums 8 sub-rows of per-pixel coverage bytes (saturating) and multiplies by 4, so alpha = min(255, 4 * covered subsamples), 0..64 subsamples per pixel ([INFERENCE] 8 horizontal subsamples per byte from the 8x scaling of glyph metrics).
 - Quads (16-byte vertices: x, y, u, v) are drawn as QUADLIST with VS2. Outline glyphs use PS3, or PS4 when style 0x1 is set. For PS4, let `t0` be glyph-cache alpha at the quad UV, `t1` the alpha at `UV - (1/cacheW, 1/cacheH)`, `g = t0 * ColorFactor.a`, and `s = t1 * ShadowColor.a`. The output alpha is `1 - (1 - g)(1 - s)`. Premultiplied RGB is `t0 * ColorFactor.rgb + s(1 - g) * ShadowColor.rgb`. Sampling up and left makes the shadow appear one pixel down and right at native scale. ShadowColor is DropShadowColor with alpha multiplied by color-factor alpha. Bitmap glyphs (record flag +0x1c) use PS1 with ColorFactor = `(1, 1, 1, cf.A)` and no PS4 shadow.
 - Sampling of the glyph cache uses the DC defaults (linear filtering).
+- `XuiFontRenderer_RasterizeToTexture` (0x921891c0) writes two raster descriptor fields after scan conversion: code points at or above U+2500 select `(1, 0)` and lower code points select `(0, ceil(line height) < 20)`. `XuiFont_DownsampleRows` does not read either field. They have no raster effect in 6717.
 
 ## 8. String tables (.xus)
 
@@ -341,11 +342,10 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 - A next-line position at NUL ends the text (no empty last line). A line that consumes no characters (first character wider than the rect) ends the text.
 - When a font's cache texture is full, a further texture is used for the rest of the frame; the whole cache is cleared before the font is used in a later frame. The binary evicts within the frame (`XuiFont_CacheGlyph` retries after an evict step and a reset step).
 - Drop shadows use the PS4 composition in the glyph's existing quad and sample one cache texel up and left.
-- Style bit 0x8 and rasterizer hinting are not reproduced. Composite glyphs with point-matched placement are rejected.
+- Style bit 0x8 is not reproduced. Composite glyphs with point-matched placement are rejected.
 - The bold normalization and line intersection use exact f32 `1 / sqrt` and division where the original refines VMX estimates (`vrsqrtefp` with one Newton step, `vrefp` with two); results can differ when a value lies within rounding error of a truncation boundary.
 - Bold and oblique apply to exui's metric model (float `units * pixelSize / unitsPerEm`), not to the original's fixed-point glyph metric records.
 
 ## Open questions
 
 - Meaning of style bit 0x8 (code 0xFFFE in `XuiFont_CacheGlyph` 0x921814c8 and `XuiFont_GetGlyph` 0x92181c08) and of 0x8000. Neither appears in a genuine 6717 scene.
-- Rasterizer hinting (mode chosen by char >= U+2500 and size < 20 px) not decoded.
