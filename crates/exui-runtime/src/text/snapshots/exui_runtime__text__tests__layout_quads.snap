@@ -49,8 +49,7 @@ expression: cases
     (
         "drop shadow",
         [
-            "(2, 1)-(7, 20) texels [1.0, 1.0, 6.0, 20.0] color 80000000",
-            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF",
+            "(1, 0)-(6, 19) texels [1.0, 1.0, 6.0, 20.0] color FFFFFFFF shadow 80000000",
         ],
     ),
     (

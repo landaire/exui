@@ -43,11 +43,11 @@ XuiText (and XuiTextPresenter, same layout): Text +0x20 (string), TextColor +4, 
 
 ## 4. TextStyle bits
 
-RE status: complete for bits listed; 0x1 meaning inferred; 0x8 and 0x8000 not traced.
+RE status: complete for bits listed except 0x8 and 0x8000, which are not traced.
 
 | Bit | Meaning | Evidence |
 |---|---|---|
-| 0x0001 | drop shadow on (glyph record flag; PS4 with DropShadowColor) | `XuiFont_DrawQuads` 0x9217f5a0 |
+| 0x0001 | drop shadow on (PS4 with DropShadowColor) | `XuiFont_DrawQuads` 0x9217f5a0; PS4 at 0x9200cef8 |
 | 0x0002 | synthetic oblique (below) | 0x92189f90, 0x9218cc80 |
 | 0x0004 | synthetic bold (below) | 0x92189f90, 0x9218cce8 |
 | 0x0008 | font flag; draw loop begins with code 0xFFFE | 0x92183098 |
@@ -304,7 +304,7 @@ RE status: partial.
 
 - Glyphs are rasterized on demand into the per-font A8 cache texture (`XuiFont_CacheGlyph` 0x921814c8). Cell width = ceil(advance) + 7 rounded up to a multiple of 16; cells have 2-3 texels of padding. UVs = cell / cache size.
 - Antialiasing: outlines are scan converted at 8x vertical oversampling; `XuiFont_DownsampleRows` (0x92188d40) sums 8 sub-rows of per-pixel coverage bytes (saturating) and multiplies by 4, so alpha = min(255, 4 * covered subsamples), 0..64 subsamples per pixel ([INFERENCE] 8 horizontal subsamples per byte from the 8x scaling of glyph metrics).
-- Quads (16-byte vertices: x, y, u, v) are drawn as QUADLIST with VS2. Outline glyphs: PS3, or PS4 when style 0x1 is set; ColorFactor = DC color factor; ShadowColor = DropShadowColor with alpha multiplied by the color factor alpha; ShadowOffset = one cache texel (1/cacheW, 1/cacheH), i.e. a 1-pixel shadow at native scale ([INFERENCE] down-right; shader not decoded). Bitmap glyphs (record flag +0x1c): ColorFactor = (1, 1, 1, cf.A).
+- Quads (16-byte vertices: x, y, u, v) are drawn as QUADLIST with VS2. Outline glyphs use PS3, or PS4 when style 0x1 is set. For PS4, let `t0` be glyph-cache alpha at the quad UV, `t1` the alpha at `UV - (1/cacheW, 1/cacheH)`, `g = t0 * ColorFactor.a`, and `s = t1 * ShadowColor.a`. The output alpha is `1 - (1 - g)(1 - s)`. Premultiplied RGB is `t0 * ColorFactor.rgb + s(1 - g) * ShadowColor.rgb`. Sampling up and left makes the shadow appear one pixel down and right at native scale. ShadowColor is DropShadowColor with alpha multiplied by color-factor alpha. Bitmap glyphs (record flag +0x1c) use PS1 with ColorFactor = `(1, 1, 1, cf.A)` and no PS4 shadow.
 - Sampling of the glyph cache uses the DC defaults (linear filtering).
 
 ## 8. String tables (.xus)
@@ -340,7 +340,7 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 - The 0x2000 measurer (0x92182f30) is the same NextLine loop without line limit and without restart.
 - A next-line position at NUL ends the text (no empty last line). A line that consumes no characters (first character wider than the rect) ends the text.
 - When a font's cache texture is full, a further texture is used for the rest of the frame; the whole cache is cleared before the font is used in a later frame. The binary evicts within the frame (`XuiFont_CacheGlyph` retries after an evict step and a reset step).
-- The drop shadow is a second quad per glyph drawn before it, offset by one pixel down and right with the same UVs.
+- Drop shadows use the PS4 composition in the glyph's existing quad and sample one cache texel up and left.
 - Style bit 0x8 and rasterizer hinting are not reproduced. Composite glyphs with point-matched placement are rejected.
 - The bold normalization and line intersection use exact f32 `1 / sqrt` and division where the original refines VMX estimates (`vrsqrtefp` with one Newton step, `vrefp` with two); results can differ when a value lies within rounding error of a truncation boundary.
 - Bold and oblique apply to exui's metric model (float `units * pixelSize / unitsPerEm`), not to the original's fixed-point glyph metric records.
@@ -349,4 +349,3 @@ Traced after the sections above, `XuiFont_NextLine` 0x92182758 and `XuiMeasureTe
 
 - Meaning of style bit 0x8 (code 0xFFFE in `XuiFont_CacheGlyph` 0x921814c8 and `XuiFont_GetGlyph` 0x92181c08) and of 0x8000. Neither appears in a genuine 6717 scene.
 - Rasterizer hinting (mode chosen by char >= U+2500 and size < 20 px) not decoded.
-- PS3/PS4 microcode (shadow composition order) not decoded.

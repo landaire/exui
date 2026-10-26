@@ -514,8 +514,11 @@ fn describe(quads: &[GlyphQuad], store: &Store) -> Vec<String> {
                 .get(quad.texture)
                 .map_or(0.0, |image| image.width().get() as f32);
             let texels: Vec<f32> = quad.uv.iter().map(|uv| uv * size).collect();
+            let shadow = quad
+                .shadow_color
+                .map_or(String::new(), |color| format!(" shadow {:08X}", color.0));
             format!(
-                "({}, {})-({}, {}) texels {texels:?} color {:08X}",
+                "({}, {})-({}, {}) texels {texels:?} color {:08X}{shadow}",
                 quad.left, quad.top, quad.right, quad.bottom, quad.color.0
             )
         })

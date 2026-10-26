@@ -48,8 +48,7 @@ impl TextRenderer {
         }
     }
 
-    /// Appends the quads of `request` to `out`. With a drop shadow, each
-    /// glyph's shadow quad precedes it.
+    /// Appends the glyph quads of `request` to `out`.
     pub fn layout(
         &mut self,
         fonts: &FontLibrary,
@@ -125,14 +124,9 @@ impl TextRenderer {
                         (cell.y as u32 + cell_height) as f32 / page_size,
                     ],
                     color: request.color,
+                    shadow_color: request.shadow_color,
                     texture,
                 };
-
-                // The shadow is the glyph moved by one cache texel, which is
-                // one pixel because quads map texels 1:1.
-                if let Some(shadow) = request.shadow_color {
-                    push_clipped(out, offset(quad, shadow), rect_height);
-                }
 
                 push_clipped(out, quad, rect_height);
             }
@@ -336,17 +330,6 @@ fn line_codes<'a>(text: &'a [u16], line: &PlacedLine) -> impl Iterator<Item = u1
     let ellipsis = if line.ellipsis { Some(ELLIPSIS) } else { None };
 
     text[line.start..line.end].iter().copied().chain(ellipsis)
-}
-
-fn offset(quad: GlyphQuad, color: Rgba8) -> GlyphQuad {
-    GlyphQuad {
-        left: quad.left + 1.0,
-        top: quad.top + 1.0,
-        right: quad.right + 1.0,
-        bottom: quad.bottom + 1.0,
-        color,
-        ..quad
-    }
 }
 
 /// Clips a quad to `0..rect_height` vertically, adjusting v proportionally.

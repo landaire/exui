@@ -19,6 +19,7 @@ use xbox360_draw::draw::DrawState;
 use xbox360_draw::draw::Filter;
 use xbox360_draw::draw::Rgba8;
 use xbox360_draw::draw::Sampler;
+use xbox360_draw::draw::TextShadow;
 use xbox360_draw::draw::TextureId;
 use xbox360_draw::draw::TextureMapping;
 use xbox360_draw::draw::Vertex;
@@ -177,6 +178,19 @@ impl<'l> Painter<'l> {
         local: &[LocalVertex],
         triangles: &[[u32; 3]],
     ) -> Result<(), DrawListError> {
+        self.draw_shadowed(world, device, brush, None, local, triangles)
+    }
+
+    /// [`Self::draw`] with a text shadow generated in the same pass.
+    pub(crate) fn draw_shadowed(
+        &mut self,
+        world: &Matrix4,
+        device: DeviceState,
+        brush: &Brush,
+        shadow: Option<TextShadow>,
+        local: &[LocalVertex],
+        triangles: &[[u32; 3]],
+    ) -> Result<(), DrawListError> {
         if matches!(device.clip, Some(Clip::Empty)) {
             return Ok(());
         }
@@ -234,6 +248,7 @@ impl<'l> Painter<'l> {
             blend: device.blend,
             clip,
             color_write: device.color_write,
+            shadow,
         };
 
         self.list.push(state, &self.vertices, &self.triangles)

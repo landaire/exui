@@ -12,6 +12,7 @@ use xbox360_draw::draw::DrawList;
 use xbox360_draw::draw::Filter;
 use xbox360_draw::draw::Rgba8;
 use xbox360_draw::draw::Sampler;
+use xbox360_draw::draw::TextShadow;
 use xbox360_draw::draw::TextureMapping;
 use xbox360_draw::image::Image;
 use xbox360_draw::texture::TextureStore;
@@ -869,7 +870,7 @@ fn draw_text(
     let shadow_color = (style & TextStyle::DROP_SHADOW != 0).then(|| {
         let shadow = props.shadow_color.argb();
         let alpha = ((shadow >> 24) * (factor >> 24) * 2 + 255) / 510;
-        Rgba8::from_argb_straight((shadow & 0x00ff_ffff) | (alpha << 24))
+        straight_rgba((shadow & 0x00ff_ffff) | (alpha << 24))
     });
     let request = TextRequest {
         text: &source.text,
@@ -931,10 +932,11 @@ fn draw_text(
             sampler,
             color: PaintColor::Premultiplied(quad.color),
         };
-        painter.draw(
+        painter.draw_shadowed(
             &state.world,
             state.device,
             &brush,
+            quad.shadow_color.map(|color| TextShadow { color }),
             &corners,
             &QUAD_TRIANGLES,
         )?;

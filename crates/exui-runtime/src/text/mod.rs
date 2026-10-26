@@ -72,7 +72,7 @@ pub struct TextRequest<'a> {
 
     /// Premultiplied glyph color, already multiplied by the element color factor.
     pub color: Rgba8,
-    /// Premultiplied drop shadow color; `Some` when `TextStyle::DROP_SHADOW` is set.
+    /// Straight drop shadow color; `Some` when `TextStyle::DROP_SHADOW` is set.
     pub shadow_color: Option<Rgba8>,
 
     /// Pixels added to the line pitch.
@@ -95,6 +95,8 @@ pub struct GlyphQuad {
     /// Normalized `[u0, v0, u1, v1]`.
     pub uv: [f32; 4],
     pub color: Rgba8,
+    /// Straight drop shadow color generated from this glyph's alpha.
+    pub shadow_color: Option<Rgba8>,
     pub texture: TextureId,
 }
 
