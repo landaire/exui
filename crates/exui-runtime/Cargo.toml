@@ -13,10 +13,10 @@ exui-extension = { workspace = true }
 libm = "0.2"
 thiserror = { workspace = true }
 winnow = { workspace = true, features = ["binary"] }
-xbox360-draw = { git = "https://github.com/landaire/xenon-forge", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
-xbox360-image = { git = "https://github.com/landaire/xenon-forge", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
+xbox360-draw = { git = "https://github.com/landaire/xenon-forge", rev = "dfd50175fd9debd4e253e6a3af7e84e692cc702d" }
+xbox360-image = { git = "https://github.com/landaire/xenon-forge", rev = "dfd50175fd9debd4e253e6a3af7e84e692cc702d" }
 zune-inflate = { version = "0.2", default-features = false, features = ["zlib"] }
 
 [dev-dependencies]
 insta = { workspace = true }
-xbox360-raster = { git = "https://github.com/landaire/xenon-forge", rev = "bd061459109bc604e3dd4b89c067ea8fda42f41e" }
+xbox360-raster = { git = "https://github.com/landaire/xenon-forge", rev = "dfd50175fd9debd4e253e6a3af7e84e692cc702d" }
