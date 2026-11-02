@@ -27,7 +27,7 @@ A decompiled scene compiles back to the same bytes. The text rules that make thi
 
 [`exui-core`](crates/exui-core) reads XUIZ archives and XUR scenes. Use it if you only need the file formats.
 
-[`exui-runtime`](crates/exui-runtime) instantiates scenes, runs their timelines, focus and messages, lays out text and renders each frame to an [`xbox360-draw`](https://github.com/landaire/rust-xbox360) draw list. It is `no_std` and runs on the console and on a PC. You supply the archives and a renderer. [`xbox360-raster`](https://github.com/landaire/rust-xbox360) is a software renderer for that draw list.
+[`exui-runtime`](crates/exui-runtime) instantiates scenes, runs their timelines, focus and messages, lays out text and renders each frame to an [`xbox360-draw`](https://github.com/landaire/xenon-forge) draw list. It is `no_std` and runs on the console and on a PC. You supply the archives and a renderer. [`xbox360-raster`](https://github.com/landaire/xenon-forge) is a software renderer for that draw list.
 
 ```rust
 let mut ui = exui_runtime::Ui::new(registry, &archives, display);
