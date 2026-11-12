@@ -456,3 +456,40 @@ fn timelines_find_children_by_any_id() {
         tree
     );
 }
+
+/// A canvas with an `XuiVideo` child setting each of its properties.
+#[test]
+fn video_elements_round_trip() {
+    let mut registry = Registry::new();
+    xui::register_video(&mut registry).expect("video group registers");
+    let props = xui::XUI_VIDEO.props;
+    let mut video = Object::new(registry.find("XuiVideo").expect("registered"));
+    video.properties = vec![
+        Property::new(def(xui::XUI_ELEMENT.props, "Id"), text("Screen")),
+        Property::new(
+            def(props, "File"),
+            text("file://episode:/media/ads/promo_1.wmv"),
+        ),
+        Property::new(def(props, "SizeMode"), Value::Unsigned(2)),
+        Property::new(def(props, "Pause"), Value::Bool(true)),
+        Property::new(def(props, "Loop"), Value::Bool(true)),
+        Property::new(def(props, "Volume"), Value::Float(-6.0)),
+    ];
+    let mut root = Object::new(registry.find("XuiCanvas").expect("built in"));
+    root.children = vec![video];
+    let tree = Tree { root };
+
+    let bytes = write(
+        &tree,
+        &registry,
+        WriteOptions {
+            allocation_hints: false,
+        },
+    )
+    .expect("tree writes");
+    let document = Document::parse(&bytes, &registry).expect("written scene parses");
+    assert_eq!(
+        Tree::from_document(&document, &registry).expect("document converts"),
+        tree
+    );
+}
