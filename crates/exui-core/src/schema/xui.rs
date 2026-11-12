@@ -1,5 +1,6 @@
 //! Classes registered by the XUI library: the `XuiInit` built-ins and the
-//! optional `XuiSoundXAudioRegister` and `XuiHtmlRegister` groups.
+//! optional `XuiSoundXAudioRegister`, `XuiHtmlRegister` and `XuiVideoRegister`
+//! groups, and `XuiAvatar`.
 //!
 //! Generated from the dash 6717 class registration functions; addresses are
 //! the registering functions.
@@ -65,6 +66,24 @@ pub static SOUND_XAUDIO: [&ClassDef; 1] = [&XUI_SOUND_X_AUDIO];
 
 /// Classes registered by `XuiHtmlRegister`, in its order.
 pub static HTML: [&ClassDef; 3] = [&XUI_HTML_ELEMENT, &XUI_HTML_PRESENTER, &XUI_HTML_CONTROL];
+
+/// `XuiAvatar`, which titles register for avatar controls.
+pub static AVATAR: [&ClassDef; 1] = [&XUI_AVATAR];
+
+/// Registers `XuiAvatar`. The dash does not register it; the definition comes
+/// from 1 vs 100 (title 584A07D1).
+pub fn register_avatar(registry: &mut Registry) -> Result<(), RegisterError> {
+    registry.register_all(&AVATAR)
+}
+
+/// Classes registered by `XuiVideoRegister`.
+pub static VIDEO: [&ClassDef; 1] = [&XUI_VIDEO];
+
+/// Registers the `XuiVideoRegister` group. The dash does not call it; the
+/// definition comes from 1 vs 100 (title 584A07D1), where it is 0x824682f0.
+pub fn register_video(registry: &mut Registry) -> Result<(), RegisterError> {
+    registry.register_all(&VIDEO)
+}
 
 /// Registers the `XuiSoundXAudioRegister` (0x9214c668) group.
 pub fn register_sound_xaudio(registry: &mut Registry) -> Result<(), RegisterError> {
@@ -1231,6 +1250,122 @@ static XUI_SOUND_X_AUDIO_PROPS: [PropDef; 1] = [PropDef::new(
 /// Registered at 0x9214c5b8.
 pub static XUI_SOUND_X_AUDIO: ClassDef =
     ClassDef::new("XuiSoundXAudio", Some("XuiSound"), &XUI_SOUND_X_AUDIO_PROPS);
+
+static XUI_AVATAR_PROPS: [PropDef; 12] = [
+    PropDef::new(
+        "UseActiveUserAvatar",
+        PropType::Bool,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "RenderView",
+        PropType::Unsigned,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Unsigned(0)),
+    ),
+    PropDef::new(
+        "QueueAnimation",
+        PropType::Unsigned,
+        PropFlags::from_bits(0x20),
+        Some(DefaultValue::Unsigned(0)),
+    ),
+    PropDef::new(
+        "PlayAnimation",
+        PropType::Unsigned,
+        PropFlags::from_bits(0x20),
+        Some(DefaultValue::Unsigned(0)),
+    ),
+    PropDef::new(
+        "UseCustomView",
+        PropType::Bool,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "CustomViewEyePosition",
+        PropType::Vector,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Vector(Vector3::new(0.0, 0.0, 0.0))),
+    ),
+    PropDef::new(
+        "CustomViewFocusPosition",
+        PropType::Vector,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Vector(Vector3::new(0.0, 0.0, 0.0))),
+    ),
+    PropDef::new(
+        "CustomViewUpDirection",
+        PropType::Vector,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Vector(Vector3::new(0.0, 0.0, 0.0))),
+    ),
+    PropDef::new(
+        "ShowSelfShadow",
+        PropType::Bool,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "ShowReflection",
+        PropType::Bool,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "ShowShadow",
+        PropType::Bool,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "ShadowLightSource",
+        PropType::Vector,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Vector(Vector3::new(0.0, 1.0, 0.0))),
+    ),
+];
+
+/// Registered at 0x8212efb8 in 1 vs 100; its definitions are built by
+/// 0x8212ea48.
+pub static XUI_AVATAR: ClassDef = ClassDef::new("XuiAvatar", Some("XuiControl"), &XUI_AVATAR_PROPS);
+
+static XUI_VIDEO_PROPS: [PropDef; 5] = [
+    PropDef::new(
+        "File",
+        PropType::String,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::String(None)),
+    ),
+    PropDef::new(
+        "SizeMode",
+        PropType::Unsigned,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Unsigned(0)),
+    ),
+    PropDef::new(
+        "Pause",
+        PropType::Bool,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "Loop",
+        PropType::Bool,
+        PropFlags::from_bits(0x8),
+        Some(DefaultValue::Bool(false)),
+    ),
+    PropDef::new(
+        "Volume",
+        PropType::Float,
+        PropFlags::from_bits(0x0),
+        Some(DefaultValue::Float(-12.0)),
+    ),
+];
+
+/// Registered at 0x824682f0 in 1 vs 100; its definitions are built by
+/// 0x82467a40.
+pub static XUI_VIDEO: ClassDef = ClassDef::new("XuiVideo", Some("XuiElement"), &XUI_VIDEO_PROPS);
 
 static XUI_HTML_ELEMENT_PROPS: [PropDef; 1] = [PropDef::new(
     "Text",

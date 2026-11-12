@@ -64,7 +64,7 @@ Bit positions in a property block are the definition's position in the table, wh
 
 `XuiElement`, `XuiCanvas`, `XuiFigure`, `XuiControl`, `XuiScene`, `XuiButton`, `XuiBackButton`, `XuiNavButton`, `XuiCheckbox`, `XuiRadioButton`, `XuiRadioGroup`, `XuiText`, `XuiTextPresenter`, `XuiVisual`, `XuiGroup`, `XuiSound`, `XuiTransition`, `XuiListItem`, `XuiScrollEnd`, `XuiScrollBar`, `XuiList`, `XuiCommonList`, `XuiProgressBar`, `XuiSlider`, `XuiCaret`, `XuiEdit`, `XuiImagePresenter`, `XuiImage`, `XuiMessageBox`, `XuiLabel`, `XuiTabScene`, `XuiNineGrid`, `XuiEffect`, `XuiTextureEffect`, `XuiGrayscaleEffect`, `XuiRecolorEffect`, `XuiBrightPassEffect`, `XuiEdgeEffect`, `XuiHVBlurEffect`, `XuiHBlurEffect`, `XuiVBlurEffect`.
 
-The dashboard calls `XuiSoundXAudioRegister` and `XuiHtmlRegister` from 0x9210c7a0 (and 0x922a3108). Its own classes are registered by group functions, listed by caller. Several groups run on demand when a blade or feature initializes, so the overall runtime order is not fixed; every base below is either a built-in or registered earlier in the same chain.
+Titles also register `XuiVideo` (`XuiVideoRegister`) and `XuiAvatar`, which the dashboard does not; their definitions below come from 1 vs 100. The dashboard calls `XuiSoundXAudioRegister` and `XuiHtmlRegister` from 0x9210c7a0 (and 0x922a3108). Its own classes are registered by group functions, listed by caller. Several groups run on demand when a blade or feature initializes, so the overall runtime order is not fixed; every base below is either a built-in or registered earlier in the same chain.
 
 | Group function | Classes |
 | --- | --- |
@@ -858,6 +858,37 @@ Base `XuiSound`. Registered at 0x9214c5b8, getter 0x9214ba90, table 0x9279abf8.
 | Bit | Name | Type | Flags | Default | Offset | Mask | Get | Set | Count |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 0 | File | String | 0x10 | null | 0x4 | - | - | 0x9214b7e0 | - |
+
+### XuiVideo
+
+Base `XuiElement`. Not registered by the dash. 1 vs 100 (title 584A07D1, retail build) registers it in `XuiVideoRegister` at 0x824682f0, getter 0x82467a40, table 0x82996f28.
+
+| Bit | Name | Type | Flags | Default | Offset | Mask | Get | Set | Count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | File | String | 0x0 | null | 0x4 | - | - | 0x82466dd0 | - |
+| 1 | SizeMode | Unsigned | 0x0 | 0 | 0x10 | - | - | 0x82466e48 | - |
+| 2 | Pause | Bool | 0x0 | false | 0xc | 0x1 | - | 0x82467708 | - |
+| 3 | Loop | Bool | 0x8 | false | 0xc | 0x2 | - | - | - |
+| 4 | Volume | Float | 0x0 | -12 | 0x60 | - | - | 0x824669c0 | - |
+
+### XuiAvatar
+
+Base `XuiControl`. Not registered by the dash. 1 vs 100 (title 584A07D1, retail build) registers it at 0x8212efb8, getter 0x8212ea48, table 0x82990220.
+
+| Bit | Name | Type | Flags | Default | Offset | Mask | Get | Set | Count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | UseActiveUserAvatar | Bool | 0x0 | false | 0x1c | - | - | 0x8212d408 | - |
+| 1 | RenderView | Unsigned | 0x8 | 0 | 0x424 | - | - | 0x8212d4b8 | - |
+| 2 | QueueAnimation | Unsigned | 0x20 | 0 | 0x414 | - | - | 0x8212d418 | - |
+| 3 | PlayAnimation | Unsigned | 0x20 | 0 | 0x418 | - | - | 0x8212d460 | - |
+| 4 | UseCustomView | Bool | 0x8 | false | 0x420 | - | - | 0x8212d4a8 | - |
+| 5 | CustomViewEyePosition | Vector | 0x0 | 0,0,0 | 0x42c | - | - | 0x8212dfc8 | - |
+| 6 | CustomViewFocusPosition | Vector | 0x0 | 0,0,0 | 0x438 | - | - | 0x8212e038 | - |
+| 7 | CustomViewUpDirection | Vector | 0x0 | 0,0,0 | 0x444 | - | - | 0x8212e0a8 | - |
+| 8 | ShowSelfShadow | Bool | 0x8 | false | 0x450 | - | - | 0x8212d4c8 | - |
+| 9 | ShowReflection | Bool | 0x8 | false | 0x454 | - | - | 0x8212d4d8 | - |
+| 10 | ShowShadow | Bool | 0x8 | false | 0x454 | - | - | 0x8212d4d8 | - |
+| 11 | ShadowLightSource | Vector | 0x0 | 0,1,0 | 0x458 | - | - | 0x8212e0c0 | - |
 
 ### XuiHtmlElement
 

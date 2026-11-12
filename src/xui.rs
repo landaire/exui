@@ -268,6 +268,8 @@ pub fn collect_custom_classes(scene: &Scene, out: &mut BTreeMap<&'static str, &'
             .iter()
             .chain(&xui::SOUND_XAUDIO)
             .chain(&xui::HTML)
+            .chain(&xui::VIDEO)
+            .chain(&xui::AVATAR)
             .any(|library_def| ptr::eq(*library_def, def));
         if !library {
             out.insert(def.name, def);
